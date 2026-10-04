@@ -117,7 +117,7 @@ export const LandingPage: React.FC = () => {
                   <div className="w-3 h-3 rounded-full bg-red-400" />
                   <div className="w-3 h-3 rounded-full bg-amber-400" />
                   <div className="w-3 h-3 rounded-full bg-emerald-400" />
-                  <span className="ml-2 font-mono text-[11px] font-semibold text-slate-700">KhojSetu Inspector Console</span>
+                  <span className="ml-2 font-mono text-[11px] font-semibold text-slate-700">ReturnHome Inspector Console</span>
                 </div>
                 <span className="bg-cyan-100 text-cyan-800 text-[10px] px-2.5 py-0.5 rounded font-mono font-bold border border-cyan-200">
                   LIVE STREAM FEED
@@ -192,7 +192,7 @@ export const LandingPage: React.FC = () => {
       <section className="py-16 px-6 bg-white border-b border-slate-200">
         <div className="max-w-7xl mx-auto space-y-12">
           <div className="text-center max-w-2xl mx-auto space-y-2">
-            <h2 className="text-3xl font-extrabold text-slate-900">How KhojSetu Works</h2>
+            <h2 className="text-3xl font-extrabold text-slate-900">How ReturnHome Works</h2>
             <p className="text-sm text-slate-600">
               A structured 5-step workflow ensuring high-precision candidate lead generation with strict human oversight.
             </p>

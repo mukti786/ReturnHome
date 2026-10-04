@@ -28,7 +28,7 @@ export const SettingsPage: React.FC = () => {
             <div className="flex items-center gap-3">
               <LogoMark size="md" theme="dark" />
               <div>
-                <h1 className="text-xl font-bold text-white">KhojSetu System Settings & AI Threshold Parameters</h1>
+                <h1 className="text-xl font-bold text-white">ReturnHome System Settings & AI Threshold Parameters</h1>
                 <p className="text-xs text-slate-400">
                   Configure face matching confidence thresholds, data retention policies, and microservice URLs.
                 </p>

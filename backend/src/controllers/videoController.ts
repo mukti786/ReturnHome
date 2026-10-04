@@ -46,7 +46,7 @@ export const analyzeVideo = async (req: AuthRequest, res: Response) => {
       id: `evt-${Date.now()}`,
       caseId: targetCase.caseId,
       timestamp: new Date().toISOString(),
-      user: req.user?.name || 'KhojSetu AI Service',
+      user: req.user?.name || 'ReturnHome AI Service',
       action: 'Video Evidence Analyzed',
       description: `Ingested video footage from ${camera.name}. Analyzed ${framesAnalyzed} frames, detected ${facesDetected} faces, and generated candidate lead ${matchId} (${trackingId}).`
     });

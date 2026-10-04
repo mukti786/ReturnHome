@@ -124,7 +124,7 @@ export const RegisterMissingPersonPage: React.FC = () => {
             <div>
               <h1 className="text-xl font-extrabold text-slate-900">Register Missing Person Profile</h1>
               <p className="text-xs text-slate-600">
-                KhojSetu Case Entry System • Complete physical profile & high-quality reference photo upload.
+                ReturnHome Case Entry System • Complete physical profile & high-quality reference photo upload.
               </p>
             </div>
           </div>

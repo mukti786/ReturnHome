@@ -74,7 +74,7 @@ export const DashboardPage: React.FC = () => {
               <LogoMark size="md" theme="light" />
               <div>
                 <h1 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
-                  KhojSetu Investigation Command Dashboard
+                  ReturnHome Investigation Command Dashboard
                 </h1>
                 <p className="text-xs text-slate-600">
                   Intelligent Missing Person Detection & Candidate Match Monitoring • <strong className="text-cyan-700 font-bold">“From Missing to Found.”</strong>

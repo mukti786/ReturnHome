@@ -103,7 +103,7 @@ export const PublicReportPage: React.FC = () => {
       {/* Main Container */}
       <main className="flex-1 max-w-4xl mx-auto w-full px-6 py-12 space-y-8">
         <div className="text-center space-y-3">
-          <h1 className="text-3xl font-extrabold text-white">KhojSetu Public Missing Person Report Portal</h1>
+          <h1 className="text-3xl font-extrabold text-white">ReturnHome Public Missing Person Report Portal</h1>
           <p className="text-sm text-slate-400 max-w-xl mx-auto">
             Submit a missing person report to participating law enforcement agencies, or check your report status using your unique reference tracking code.
           </p>
@@ -214,7 +214,7 @@ export const PublicReportPage: React.FC = () => {
                         <Camera className="w-4 h-4 text-cyan-400" /> 2. Upload Reference Photo (AI Face Matching)
                       </h3>
                       <p className="text-[11px] text-slate-400">
-                        Upload photo(s) of the missing person. KhojSetu AI engine extracts facial embeddings to search live CCTV feeds.
+                        Upload photo(s) of the missing person. ReturnHome AI engine extracts facial embeddings to search live CCTV feeds.
                       </p>
                     </div>
 

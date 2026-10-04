@@ -52,7 +52,7 @@ export const AlertsPage: React.FC = () => {
             <div className="flex items-center gap-3">
               <LogoMark size="md" theme="dark" />
               <div>
-                <h1 className="text-xl font-bold text-white">KhojSetu Internal Alert System</h1>
+                <h1 className="text-xl font-bold text-white">ReturnHome Internal Alert System</h1>
                 <p className="text-xs text-slate-400">
                   Role-scoped Socket.IO notification channel dispatches candidate match alerts for investigator verification.
                 </p>

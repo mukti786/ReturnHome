@@ -40,7 +40,7 @@ export const ReportsPage: React.FC = () => {
       <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center">
         <div className="text-center space-y-2">
           <div className="w-8 h-8 rounded-full border-2 border-cyan-500 border-t-transparent animate-spin mx-auto" />
-          <p className="text-xs text-slate-400">Generating Official KhojSetu Report...</p>
+          <p className="text-xs text-slate-400">Generating Official ReturnHome Report...</p>
         </div>
       </div>
     );
@@ -95,7 +95,7 @@ export const ReportsPage: React.FC = () => {
 
             {/* Disclaimer in Report */}
             <div className="p-3 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 text-xs leading-relaxed">
-              <strong>OFFICIAL INVESTIGATION NOTICE:</strong> KhojSetu — AI-assisted investigation support platform. All AI-generated face matches contained in this dossier are candidate leads and require independent human verification by authorized law enforcement personnel.
+              <strong>OFFICIAL INVESTIGATION NOTICE:</strong> ReturnHome — AI-assisted investigation support platform. All AI-generated face matches contained in this dossier are candidate leads and require independent human verification by authorized law enforcement personnel.
             </div>
 
             {/* Missing Person Profile Box */}
@@ -205,7 +205,7 @@ export const ReportsPage: React.FC = () => {
             </div>
 
             <div className="text-center text-[10px] text-slate-500 pt-4 border-t border-slate-200 font-mono">
-              KhojSetu — AI-assisted investigation support. AI-generated matches require independent human verification.
+              ReturnHome — AI-assisted investigation support. AI-generated matches require independent human verification.
             </div>
           </div>
         </main>

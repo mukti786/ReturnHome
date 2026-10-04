@@ -17,7 +17,7 @@ const UserSchema: Schema = new Schema(
     email: { type: String, required: true, unique: true, lowercase: true },
     passwordHash: { type: String, required: true },
     role: { type: String, enum: ['Admin', 'Investigator', 'Analyst', 'Viewer'], default: 'Investigator' },
-    organization: { type: String, default: 'KhojSetu Investigation Unit' },
+    organization: { type: String, default: 'ReturnHome Investigation Unit' },
     status: { type: String, enum: ['Active', 'Inactive'], default: 'Active' }
   },
   { timestamps: true }

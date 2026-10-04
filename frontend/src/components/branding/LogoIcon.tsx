@@ -39,7 +39,7 @@ export const LogoIcon: React.FC<LogoIconProps> = ({
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className={`transition-transform duration-200 ${className}`}
-      aria-label="KhojSetu Logo Icon"
+      aria-label="ReturnHome Logo Icon"
     >
       <defs>
         {/* Main Gradient: Deep Indigo to Vibrant Teal */}

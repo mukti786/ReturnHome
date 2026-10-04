@@ -1,4 +1,4 @@
-// KhojSetu Embedded Memory Store & Demo Data Generator
+// ReturnHome Embedded Memory Store & Demo Data Generator
 
 export interface SeedData {
   users: any[];
@@ -15,7 +15,7 @@ export const initialMemoryStore: SeedData = {
     {
       id: 'usr-admin-1',
       name: 'Inspector Vikram Singh',
-      email: 'vikram.singh@khojsetu.gov.in',
+      email: 'vikram.singh@ReturnHome.gov.in',
       role: 'Admin',
       organization: 'Special Missing Persons Unit, Delhi Police',
       status: 'Active',
@@ -24,7 +24,7 @@ export const initialMemoryStore: SeedData = {
     {
       id: 'usr-investigator-1',
       name: 'Officer Ananya Sen',
-      email: 'ananya.sen@khojsetu.gov.in',
+      email: 'ananya.sen@ReturnHome.gov.in',
       role: 'Investigator',
       organization: 'Crime Branch Investigation Division',
       status: 'Active',
@@ -33,7 +33,7 @@ export const initialMemoryStore: SeedData = {
     {
       id: 'usr-analyst-1',
       name: 'Dr. Rajesh Rao',
-      email: 'rajesh.rao@khojsetu.gov.in',
+      email: 'rajesh.rao@ReturnHome.gov.in',
       role: 'Analyst',
       organization: 'Forensic Video & AI Analysis Lab',
       status: 'Active',
@@ -268,7 +268,7 @@ export const initialMemoryStore: SeedData = {
       id: 'evt-4',
       caseId: 'MP-2026-0001',
       timestamp: '2026-09-07T14:32:00.000Z',
-      user: 'KhojSetu AI Service',
+      user: 'ReturnHome AI Service',
       action: 'AI Analysis Completed',
       description: 'Extracted 7,240 frames and detected 381 faces. Formed 18 deduplicated tracks.'
     },
@@ -276,7 +276,7 @@ export const initialMemoryStore: SeedData = {
       id: 'evt-5',
       caseId: 'MP-2026-0001',
       timestamp: '2026-09-07T14:32:10.000Z',
-      user: 'KhojSetu AI Engine',
+      user: 'ReturnHome AI Engine',
       action: 'Potential Match Detected',
       description: 'Generated Candidate Match MATCH-2026-001 with 91% similarity score on CAM-01.'
     },

@@ -109,14 +109,14 @@ export const createCase = async (req: AuthRequest, res: Response) => {
       lastSeenLocation,
       latitude: 28.6139 + (Math.random() * 0.05 - 0.025),
       longitude: 77.2090 + (Math.random() * 0.05 - 0.025),
-      description: description || 'Missing person case reported to KhojSetu portal.',
+      description: description || 'Missing person case reported to ReturnHome portal.',
       clothingDescription: clothingDescription || 'Dark jacket and trousers',
       status: 'Active',
       priority: priority || 'High',
       photos: Array.isArray(photos) && photos.length > 0 ? photos : [
         'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=600&q=80'
       ],
-      contactAuthority: contactAuthority || 'KhojSetu Investigation Bureau',
+      contactAuthority: contactAuthority || 'ReturnHome Investigation Bureau',
       contactNumber: contactNumber || '+91-11-23410000',
       createdBy: req.user?.name || 'Investigator Officer',
       createdAt: new Date().toISOString(),
@@ -152,7 +152,7 @@ export const createCase = async (req: AuthRequest, res: Response) => {
     return res.status(201).json({
       success: true,
       case: newCase,
-      message: `Case ${caseId} registered successfully in KhojSetu.`
+      message: `Case ${caseId} registered successfully in ReturnHome.`
     });
   } catch (error: any) {
     return res.status(500).json({ success: false, message: error.message });

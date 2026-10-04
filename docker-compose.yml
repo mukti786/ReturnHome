@@ -6,7 +6,7 @@ services:
     ports:
       - "5173:5173"
     environment:
-      - VITE_APP_NAME=KhojSetu
+      - VITE_APP_NAME=ReturnHome
       - VITE_APP_TAGLINE=From Missing to Found.
     depends_on:
       - backend

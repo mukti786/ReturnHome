@@ -1,7 +1,7 @@
 {
-  "name": "khojsetu",
+  "name": "ReturnHome",
   "version": "1.0.0",
-  "description": "KhojSetu — Intelligent Missing Person Detection & Investigation System ('From Missing to Found.')",
+  "description": "ReturnHome — Intelligent Missing Person Detection & Investigation System ('From Missing to Found.')",
   "main": "index.js",
   "scripts": {
     "dev": "npm --prefix frontend run dev",
@@ -15,12 +15,12 @@
     "seed": "npm --prefix backend run seed"
   },
   "keywords": [
-    "khojsetu",
+    "ReturnHome",
     "missing-person-detection",
     "ai-investigation",
     "computer-vision",
     "face-matching"
   ],
-  "author": "KhojSetu Engineering Team",
+  "author": "ReturnHome Engineering Team",
   "license": "MIT"
 }

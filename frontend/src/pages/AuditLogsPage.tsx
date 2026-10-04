@@ -35,7 +35,7 @@ export const AuditLogsPage: React.FC = () => {
             <div className="flex items-center gap-3">
               <LogoMark size="md" theme="dark" />
               <div>
-                <h1 className="text-xl font-bold text-white">KhojSetu Cryptographic Immutable Audit Log</h1>
+                <h1 className="text-xl font-bold text-white">ReturnHome Cryptographic Immutable Audit Log</h1>
                 <p className="text-xs text-slate-400">
                   Read-only audit record capturing every login, evidence search, video ingestion, and candidate match verification.
                 </p>

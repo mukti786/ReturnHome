@@ -35,7 +35,7 @@ export const InvestigationTimelinePage: React.FC = () => {
           <div className="flex items-center gap-3 bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg">
             <LogoMark size="md" theme="dark" />
             <div>
-              <h1 className="text-xl font-bold text-white">KhojSetu Master Investigation Timeline</h1>
+              <h1 className="text-xl font-bold text-white">ReturnHome Master Investigation Timeline</h1>
               <p className="text-xs text-slate-400">
                 Chronological record of case events, video ingestion, AI analysis triggers, and investigator match verification sign-offs.
               </p>

@@ -36,9 +36,9 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Brand & System Header
 app.use((req, res, next) => {
-  res.setHeader('X-Powered-By', 'KhojSetu AI Platform');
-  res.setHeader('X-KhojSetu-Version', '1.0.0');
-  res.setHeader('X-KhojSetu-Tagline', 'From Missing to Found.');
+  res.setHeader('X-Powered-By', 'ReturnHome AI Platform');
+  res.setHeader('X-ReturnHome-Version', '1.0.0');
+  res.setHeader('X-ReturnHome-Tagline', 'From Missing to Found.');
   next();
 });
 
@@ -60,7 +60,7 @@ app.use((req: any, res, next) => {
 // Root API Endpoint
 app.get('/api', (req, res) => {
   res.json({
-    app: 'KhojSetu — Intelligent Missing Person Detection & Investigation System',
+    app: 'ReturnHome — Intelligent Missing Person Detection & Investigation System',
     tagline: 'From Missing to Found.',
     status: 'ONLINE',
     version: '1.0.0',
@@ -80,7 +80,7 @@ app.use('/api/audit', auditRoutes);
 app.use((req, res) => {
   res.status(404).json({
     success: false,
-    message: 'KhojSetu API endpoint not found.'
+    message: 'ReturnHome API endpoint not found.'
   });
 });
 
@@ -92,8 +92,8 @@ const startServer = async () => {
   server.listen(PORT, () => {
     console.log(`
 ================================================================
-  KhojSetu Core Backend Running on http://localhost:${PORT}
-  Official Product: KhojSetu
+  ReturnHome Core Backend Running on http://localhost:${PORT}
+  Official Product: ReturnHome
   Tagline: "From Missing to Found."
   Status: Operational (REST & Socket.IO Active)
 ================================================================

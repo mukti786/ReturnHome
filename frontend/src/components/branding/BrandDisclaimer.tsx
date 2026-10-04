@@ -26,7 +26,7 @@ export const BrandDisclaimer: React.FC<BrandDisclaimerProps> = ({
       <ShieldAlert className="w-5 h-5 shrink-0 text-amber-600 mt-0.5" />
       <div className="flex-1">
         <h4 className="font-bold text-amber-950 flex items-center gap-1.5 text-xs sm:text-sm">
-          KhojSetu Human-in-the-Loop Safeguard
+          ReturnHome Human-in-the-Loop Safeguard
         </h4>
         <p className="mt-1 text-xs text-amber-800 leading-relaxed">
           AI-generated matches are potential leads only and must be independently verified by authorized personnel. Similarity scores reflect mathematical embedding distance and do not establish confirmed identity without human sign-off.

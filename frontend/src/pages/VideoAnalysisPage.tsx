@@ -95,7 +95,7 @@ export const VideoAnalysisPage: React.FC = () => {
           <div className="flex items-center gap-3 bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
             <LogoMark size="md" theme="light" />
             <div>
-              <h1 className="text-xl font-extrabold text-slate-900">KhojSetu CCTV & Video Analysis Workspace</h1>
+              <h1 className="text-xl font-extrabold text-slate-900">ReturnHome CCTV & Video Analysis Workspace</h1>
               <p className="text-xs text-slate-600">
                 Automated frame extraction, face quality filter, de-duplicated tracking (<code className="text-indigo-700 font-bold">TRACK-00021</code>), and candidate match search.
               </p>
@@ -161,7 +161,7 @@ export const VideoAnalysisPage: React.FC = () => {
                   </>
                 ) : (
                   <>
-                    <Play className="w-4 h-4" /> Execute KhojSetu AI Analysis Pipeline
+                    <Play className="w-4 h-4" /> Execute ReturnHome AI Analysis Pipeline
                   </>
                 )}
               </button>
@@ -207,7 +207,7 @@ export const VideoAnalysisPage: React.FC = () => {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="font-extrabold text-slate-900 text-base flex items-center gap-2">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-600" /> KhojSetu AI Candidate Detection Results
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600" /> ReturnHome AI Candidate Detection Results
                 </h3>
                 <span className="text-xs text-amber-900 font-extrabold bg-amber-100 px-3 py-1 rounded-xl border border-amber-300">
                   POTENTIAL MATCHES — INDEPENDENT HUMAN REVIEW REQUIRED

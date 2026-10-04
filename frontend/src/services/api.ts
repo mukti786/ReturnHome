@@ -62,7 +62,7 @@ export const apiService = {
         name: userData.name,
         email: userData.email,
         role: userData.role || 'Investigator',
-        organization: userData.organization || 'KhojSetu Investigation Unit',
+        organization: userData.organization || 'ReturnHome Investigation Unit',
         status: 'Active',
         createdAt: new Date().toISOString()
       };

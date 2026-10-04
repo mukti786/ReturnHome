@@ -1,5 +1,5 @@
 """
-KhojSetu — AI Microservice
+ReturnHome — AI Microservice
 Intelligent Missing Person Detection & Investigation System ("From Missing to Found.")
 """
 
@@ -13,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 app = FastAPI(
-    title="KhojSetu AI Service",
+    title="ReturnHome AI Service",
     description="Face Detection, Quality Assessment, Face Tracking & Vector Similarity Search API",
     version="1.0.0"
 )
@@ -74,7 +74,7 @@ class VideoAnalysisRequest(BaseModel):
 def read_root():
     return {
         "status": "online",
-        "service": "KhojSetu AI Service",
+        "service": "ReturnHome AI Service",
         "tagline": "From Missing to Found.",
         "version": "1.0.0",
         "disclaimer": "AI-generated matches are potential leads only and must be independently verified by authorized personnel."

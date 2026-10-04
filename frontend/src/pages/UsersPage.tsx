@@ -7,9 +7,9 @@ import LogoMark from '../components/branding/LogoMark';
 
 export const UsersPage: React.FC = () => {
   const users = [
-    { id: '1', name: 'Inspector Vikram Singh', email: 'vikram.singh@khojsetu.gov.in', role: 'Admin', organization: 'Delhi Police Special Unit', status: 'Active' },
-    { id: '2', name: 'Officer Ananya Sen', email: 'ananya.sen@khojsetu.gov.in', role: 'Investigator', organization: 'Crime Branch Unit', status: 'Active' },
-    { id: '3', name: 'Dr. Rajesh Rao', email: 'rajesh.rao@khojsetu.gov.in', role: 'Analyst', organization: 'Forensic Video Lab', status: 'Active' },
+    { id: '1', name: 'Inspector Vikram Singh', email: 'vikram.singh@ReturnHome.gov.in', role: 'Admin', organization: 'Delhi Police Special Unit', status: 'Active' },
+    { id: '2', name: 'Officer Ananya Sen', email: 'ananya.sen@ReturnHome.gov.in', role: 'Investigator', organization: 'Crime Branch Unit', status: 'Active' },
+    { id: '3', name: 'Dr. Rajesh Rao', email: 'rajesh.rao@ReturnHome.gov.in', role: 'Analyst', organization: 'Forensic Video Lab', status: 'Active' },
     { id: '4', name: 'Sunita Sharma', email: 'sunita.sharma@childrescue.org', role: 'Viewer', organization: 'Child Rescue Alliance NGO', status: 'Active' }
   ];
 

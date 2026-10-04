@@ -71,14 +71,14 @@ export const PotentialMatchesPage: React.FC = () => {
             <div className="flex items-center gap-3">
               <LogoMark size="md" theme="light" />
               <div>
-                <h1 className="text-xl font-extrabold text-slate-900">KhojSetu Candidate Match Review Dashboard</h1>
+                <h1 className="text-xl font-extrabold text-slate-900">ReturnHome Candidate Match Review Dashboard</h1>
                 <p className="text-xs text-slate-600">
                   Human-in-the-Loop Inspection Workspace • All AI similarity results require independent human sign-off.
                 </p>
               </div>
             </div>
             <span className="text-xs font-extrabold text-amber-900 bg-amber-100 border border-amber-300 px-3.5 py-1.5 rounded-xl">
-              KhojSetu Human Review Required
+              ReturnHome Human Review Required
             </span>
           </div>
 
@@ -206,7 +206,7 @@ export const PotentialMatchesPage: React.FC = () => {
 
                 {/* Human Review Banner */}
                 <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-xs leading-relaxed shadow-sm">
-                  <strong>KhojSetu Potential Match — Human Review Required:</strong> Similarity score ({Math.round(selectedMatch.similarityScore * 100)}%) is an AI-generated mathematical distance signal and does not establish confirmed identity without human sign-off.
+                  <strong>ReturnHome Potential Match — Human Review Required:</strong> Similarity score ({Math.round(selectedMatch.similarityScore * 100)}%) is an AI-generated mathematical distance signal and does not establish confirmed identity without human sign-off.
                 </div>
 
                 {/* Side-by-Side Display */}

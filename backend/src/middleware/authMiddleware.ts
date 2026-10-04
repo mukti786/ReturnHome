@@ -25,7 +25,7 @@ export const protect = (req: AuthRequest, res: Response, next: NextFunction) => 
     req.user = {
       id: 'usr-admin-1',
       name: 'Inspector Vikram Singh',
-      email: 'vikram.singh@khojsetu.gov.in',
+      email: 'vikram.singh@ReturnHome.gov.in',
       role: 'Admin',
       organization: 'Special Missing Persons Unit, Delhi Police'
     };
@@ -41,7 +41,7 @@ export const protect = (req: AuthRequest, res: Response, next: NextFunction) => 
     req.user = {
       id: 'usr-admin-1',
       name: 'Inspector Vikram Singh',
-      email: 'vikram.singh@khojsetu.gov.in',
+      email: 'vikram.singh@ReturnHome.gov.in',
       role: 'Admin',
       organization: 'Special Missing Persons Unit, Delhi Police'
     };

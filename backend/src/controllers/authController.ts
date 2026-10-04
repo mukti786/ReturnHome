@@ -24,7 +24,7 @@ export const register = async (req: Request, res: Response) => {
       name,
       email: email.toLowerCase(),
       role: role || 'Investigator',
-      organization: organization || 'KhojSetu Investigation Unit',
+      organization: organization || 'ReturnHome Investigation Unit',
       phone: phone || '',
       status: 'Active',
       createdAt: new Date().toISOString()
@@ -80,7 +80,7 @@ export const login = async (req: Request, res: Response) => {
         name: email.split('@')[0].toUpperCase(),
         email: email.toLowerCase(),
         role: email.includes('admin') ? 'Admin' : 'Investigator',
-        organization: 'KhojSetu Special Investigation Unit',
+        organization: 'ReturnHome Special Investigation Unit',
         status: 'Active',
         createdAt: new Date().toISOString()
       };

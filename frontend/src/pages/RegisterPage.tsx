@@ -8,7 +8,16 @@ import { UserRole } from '../types';
 
 export const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
-  const { register } = useAuth();
+  const { register } = useAuth() as ReturnType<typeof useAuth> & {
+    register: (user: {
+      name: string;
+      email: string;
+      phone: string;
+      organization: string;
+      role: UserRole;
+      password: string;
+    }) => Promise<unknown>;
+  };
 
   const [formData, setFormData] = useState({
     name: '',
@@ -100,7 +109,7 @@ export const RegisterPage: React.FC = () => {
                     required
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    placeholder="rajesh.kumar@khojsetu.gov.in"
+                    placeholder="rajesh.kumar@ReturnHome.gov.in"
                     className="w-full bg-slate-950 border border-slate-700 rounded-xl pl-9 pr-4 py-2 text-xs text-white placeholder-slate-500 focus:border-cyan-500"
                   />
                 </div>

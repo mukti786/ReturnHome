@@ -58,7 +58,7 @@ export const CaseDetailsPage: React.FC = () => {
       <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center">
         <div className="text-center space-y-3">
           <div className="w-8 h-8 rounded-full border-2 border-cyan-500 border-t-transparent animate-spin mx-auto" />
-          <p className="text-xs text-slate-400">Loading KhojSetu Case Record...</p>
+          <p className="text-xs text-slate-400">Loading ReturnHome Case Record...</p>
         </div>
       </div>
     );

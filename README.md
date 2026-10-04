@@ -1,4 +1,4 @@
-# KhojSetu — Intelligent Missing Person Detection & Investigation System
+# ReturnHome — Intelligent Missing Person Detection & Investigation System
 
 **Tagline:** *“From Missing to Found.”*
 
@@ -6,9 +6,9 @@
 
 ## 1. Overview
 
-**KhojSetu** is an AI-assisted, human-in-the-loop investigation platform designed for authorized law enforcement agencies, investigators, and missing-person relief organizations.
+**ReturnHome** is an AI-assisted, human-in-the-loop investigation platform designed for authorized law enforcement agencies, investigators, and missing-person relief organizations.
 
-KhojSetu compares registered missing-person profiles against faces detected in CCTV feeds, video uploads, and image sets. Rather than performing autonomous public alerting or automated status changes, KhojSetu surfaces **candidate matches** with explicit similarity scores for mandatory investigator verification.
+ReturnHome compares registered missing-person profiles against faces detected in CCTV feeds, video uploads, and image sets. Rather than performing autonomous public alerting or automated status changes, ReturnHome surfaces **candidate matches** with explicit similarity scores for mandatory investigator verification.
 
 > **Ethical & Human-in-the-Loop Safeguard:**  
 > *AI-generated matches are potential leads only and must be independently verified by authorized personnel.*
@@ -26,7 +26,7 @@ KhojSetu compares registered missing-person profiles against faces detected in C
 - **Real-Time Alert Center**: Internal Socket.IO notifications dispatches candidate leads to active investigator dashboards.
 - **Immutable Cryptographic Audit Logs**: Read-only log recording every login, search, view, and verification decision.
 - **Public Reporting Portal**: Isolated reporting tool for public citizens with tracking reference codes (e.g. `PUB-REF-9021`).
-- **Official Dossier Export**: Generate printable/PDF case reports featuring the KhojSetu logo, tagline, and legal AI disclaimers.
+- **Official Dossier Export**: Generate printable/PDF case reports featuring the ReturnHome logo, tagline, and legal AI disclaimers.
 
 ---
 
@@ -56,7 +56,7 @@ KhojSetu compares registered missing-person profiles against faces detected in C
 
 ## 4. Brand Identity & Logo System
 
-KhojSetu features a vector SVG branding system supporting 4 distinct themes and multiple variants:
+ReturnHome features a vector SVG branding system supporting 4 distinct themes and multiple variants:
 
 ```tsx
 import Logo from './components/branding/Logo';
@@ -80,7 +80,7 @@ import Logo from './components/branding/Logo';
 ## 5. Folder Structure
 
 ```
-khojsetu/
+ReturnHome/
 ├── frontend/
 │   ├── src/
 │   │   ├── components/
@@ -158,11 +158,11 @@ khojsetu/
 
 Use these one-click demo credentials on the login page:
 
-- **Lead Administrator**: `vikram.singh@khojsetu.gov.in` (Password: `password123`)
-- **Investigator Officer**: `ananya.sen@khojsetu.gov.in` (Password: `password123`)
+- **Lead Administrator**: `vikram.singh@ReturnHome.gov.in` (Password: `password123`)
+- **Investigator Officer**: `ananya.sen@ReturnHome.gov.in` (Password: `password123`)
 
 ---
 
 ## 8. Responsible AI & Legal Disclaimer
 
-*KhojSetu is strictly designed as an investigation decision-support platform. All AI outputs are labeled as potential leads and require independent verification by an authorized investigator before any status change or operational action.*
+*ReturnHome is strictly designed as an investigation decision-support platform. All AI outputs are labeled as potential leads and require independent verification by an authorized investigator before any status change or operational action.*

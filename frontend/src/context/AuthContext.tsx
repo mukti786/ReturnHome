@@ -21,7 +21,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>({
     id: 'usr-admin-1',
     name: 'Inspector Vikram Singh',
-    email: 'vikram.singh@khojsetu.gov.in',
+    email: 'vikram.singh@ReturnHome.gov.in',
     role: 'Admin',
     organization: 'Special Missing Persons Unit, Delhi Police',
     status: 'Active',
@@ -51,7 +51,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         name: email.split('@')[0].toUpperCase(),
         email,
         role: email.includes('admin') ? 'Admin' : 'Investigator',
-        organization: 'KhojSetu Special Investigation Unit',
+        organization: 'ReturnHome Special Investigation Unit',
         status: 'Active',
         createdAt: new Date().toISOString()
       };

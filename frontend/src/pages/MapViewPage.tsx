@@ -220,7 +220,7 @@ export const MapViewPage: React.FC = () => {
               <LogoMark size="md" theme="light" />
               <div>
                 <h1 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
-                  KhojSetu Real Satellite Geolocation & Journey Map
+                  ReturnHome Real Satellite Geolocation & Journey Map
                 </h1>
                 <p className="text-xs text-slate-600">
                   Interactive Esri World Imagery Satellite Map plotting real high-resolution camera sighting coordinates.

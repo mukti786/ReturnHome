@@ -103,7 +103,7 @@ export const Navbar: React.FC = () => {
           </div>
           <div className="hidden md:flex flex-col text-left">
             <span className="text-xs font-bold text-slate-900 leading-tight">{user?.name || 'Investigator'}</span>
-            <span className="text-[10px] text-slate-500 font-medium leading-tight">{user?.organization || 'KhojSetu Unit'}</span>
+            <span className="text-[10px] text-slate-500 font-medium leading-tight">{user?.organization || 'ReturnHome Unit'}</span>
           </div>
 
           <button

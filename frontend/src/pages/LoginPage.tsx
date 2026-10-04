@@ -9,7 +9,7 @@ export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
   
-  const [email, setEmail] = useState('vikram.singh@khojsetu.gov.in');
+  const [email, setEmail] = useState('vikram.singh@ReturnHome.gov.in');
   const [password, setPassword] = useState('password123');
   const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -52,7 +52,7 @@ export const LoginPage: React.FC = () => {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@khojsetu.gov.in"
+                  placeholder="name@ReturnHome.gov.in"
                   className="w-full bg-slate-950 border border-slate-700 rounded-xl pl-9 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition-all"
                 />
               </div>
@@ -105,7 +105,7 @@ export const LoginPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => {
-                  setEmail('vikram.singh@khojsetu.gov.in');
+                  setEmail('vikram.singh@ReturnHome.gov.in');
                   setPassword('password123');
                 }}
                 className="p-2 rounded-lg bg-slate-950 border border-slate-800 hover:border-cyan-500/50 text-left text-slate-300 transition-all"
@@ -116,7 +116,7 @@ export const LoginPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => {
-                  setEmail('ananya.sen@khojsetu.gov.in');
+                  setEmail('ananya.sen@ReturnHome.gov.in');
                   setPassword('password123');
                 }}
                 className="p-2 rounded-lg bg-slate-950 border border-slate-800 hover:border-cyan-500/50 text-left text-slate-300 transition-all"
