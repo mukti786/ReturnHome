@@ -29,7 +29,7 @@ export const Footer: React.FC = () => {
             <a href="#contact" className="hover:text-indigo-600 transition-colors">Contact Support</a>
           </div>
           <span className="mt-1 font-mono text-[10px] text-slate-400">
-            KhojSetu v1.0.0 • DEMO DATA — NOT REAL PERSON INFORMATION
+            ReturnHome v1.0.0 • DEMO DATA — NOT REAL PERSON INFORMATION
           </span>
         </div>
       </div>

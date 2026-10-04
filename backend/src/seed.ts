@@ -14,7 +14,7 @@ const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/khojsetu';
 const seed = async () => {
   try {
     await mongoose.connect(MONGO_URI);
-    console.log('[KhojSetu Seed] Connected to MongoDB...');
+    console.log('[ReturnHome Seed] Connected to MongoDB...');
 
     await User.deleteMany({});
     await MissingPerson.deleteMany({});
@@ -22,7 +22,7 @@ const seed = async () => {
     await Match.deleteMany({});
     await AuditLog.deleteMany({});
 
-    console.log('[KhojSetu Seed] Existing collections cleared.');
+    console.log('[ReturnHome Seed] Existing collections cleared.');
 
     for (const u of initialMemoryStore.users) {
       await User.create({
@@ -51,10 +51,10 @@ const seed = async () => {
       await AuditLog.create(log);
     }
 
-    console.log('[KhojSetu Seed] Database seeded successfully with demo investigation profiles!');
+    console.log('[ReturnHome Seed] Database seeded successfully with demo investigation profiles!');
     process.exit(0);
   } catch (error) {
-    console.error('[KhojSetu Seed] Seeding error:', error);
+    console.error('[ReturnHome Seed] Seeding error:', error);
     process.exit(1);
   }
 };

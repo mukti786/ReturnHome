@@ -44,10 +44,10 @@ app.use((req, res, next) => {
 
 // Socket.IO Connection Event
 io.on('connection', (socket) => {
-  console.log(`[KhojSetu Socket] Client connected: ${socket.id}`);
+  console.log(`[ReturnHome Socket] Client connected: ${socket.id}`);
 
   socket.on('disconnect', () => {
-    console.log(`[KhojSetu Socket] Client disconnected: ${socket.id}`);
+    console.log(`[ReturnHome Socket] Client disconnected: ${socket.id}`);
   });
 });
 

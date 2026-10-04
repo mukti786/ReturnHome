@@ -12,6 +12,6 @@
     <path d="M29.5 25.5L36 32" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" />
     <circle cx="23" cy="17" r="2.5" fill="#F59E0B" />
   </g>
-  <text x="60" y="36" font-family="Inter, sans-serif" font-weight="800" font-size="26" fill="#0F172A">Khoj<tspan fill="#06B6D4">Setu</tspan></text>
+  <text x="60" y="36" font-family="Inter, sans-serif" font-weight="800" font-size="26" fill="#0F172A">Return<tspan fill="#06B6D4">Home</tspan></text>
   <text x="60" y="50" font-family="Inter, sans-serif" font-weight="500" font-size="10" fill="#64748B" letter-spacing="0.5">From Missing to Found.</text>
 </svg>

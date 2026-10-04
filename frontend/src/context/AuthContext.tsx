@@ -27,7 +27,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     status: 'Active',
     createdAt: '2026-01-15T09:00:00.000Z'
   });
-  const [token, setToken] = useState<string | null>(localStorage.getItem('khojsetu_token') || 'demo-jwt-token-2026');
+  const [token, setToken] = useState<string | null>(localStorage.getItem('returnhome_token') || localStorage.getItem('khojsetu_token') || 'demo-jwt-token-2026');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [activeRole, setActiveRole] = useState<UserRole>('Admin');
   const [isDemoMode, setIsDemoMode] = useState<boolean>(true);
@@ -40,7 +40,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setToken(res.token);
         setUser(res.user);
         setActiveRole(res.user.role);
-        localStorage.setItem('khojsetu_token', res.token);
+        localStorage.setItem('returnhome_token', res.token);
         setIsLoading(false);
         return true;
       }
@@ -66,6 +66,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = () => {
     setUser(null);
     setToken(null);
+    localStorage.removeItem('returnhome_token');
     localStorage.removeItem('khojsetu_token');
   };
 

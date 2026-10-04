@@ -69,7 +69,7 @@ export const LandingPage: React.FC = () => {
             </div>
 
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-tight text-slate-900">
-              Khoj<span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-700 via-blue-600 to-cyan-600">Setu</span>
+              Return<span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-700 via-blue-600 to-cyan-600">Home</span>
             </h1>
 
             <p className="text-xl sm:text-2xl font-extrabold text-cyan-700 tracking-wide font-sans">

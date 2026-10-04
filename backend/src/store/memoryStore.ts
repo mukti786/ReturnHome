@@ -1,13 +1,50 @@
-// ReturnHome Embedded Memory Store & Demo Data Generator
+// ReturnHome Persistent Database Store & Demo Investigation Generator
+import fs from 'fs';
+import path from 'path';
+
+export interface FaceRepresentation {
+  id: string;
+  caseId: string;
+  photoUrl: string;
+  embedding: number[]; // 512-dimensional L2-normalized vector
+  model: string;
+  quality?: {
+    blur_score: number;
+    lighting_score: number;
+    pose_angle: number;
+    overall_quality: number;
+  };
+  createdAt: string;
+}
 
 export interface SeedData {
   users: any[];
   cases: any[];
+  faceRepresentations: FaceRepresentation[];
   cameras: any[];
   matches: any[];
   timeline: any[];
   auditLogs: any[];
   reports: any[];
+}
+
+const DB_PATH = path.resolve(__dirname, '../../data/returnhome_db.json');
+
+// Helper to load seed embeddings if available
+let seedEmbeddings: { aarav: number[]; priya: number[]; rohan: number[] } = {
+  aarav: Array(512).fill(0).map((_, i) => Math.sin(i * 0.1) / Math.sqrt(512)),
+  priya: Array(512).fill(0).map((_, i) => Math.cos(i * 0.1) / Math.sqrt(512)),
+  rohan: Array(512).fill(0).map((_, i) => Math.sin(i * 0.2 + 0.5) / Math.sqrt(512))
+};
+
+try {
+  const seedEmbPath = path.resolve(__dirname, '../../data/seed_embeddings.json');
+  if (fs.existsSync(seedEmbPath)) {
+    const raw = fs.readFileSync(seedEmbPath, 'utf-8');
+    seedEmbeddings = JSON.parse(raw);
+  }
+} catch (e) {
+  // Use fallback generated unit vectors
 }
 
 export const initialMemoryStore: SeedData = {
@@ -65,7 +102,7 @@ export const initialMemoryStore: SeedData = {
       lastSeenLocation: 'New Delhi Railway Station - Platform 4',
       latitude: 28.6431,
       longitude: 77.2197,
-      description: 'Aarav went missing while waiting at the station concourse. He was traveling with his uncle.',
+      description: 'Aarav went missing while waiting at the station concourse. He was traveling with his family.',
       clothingDescription: 'Red hooded jacket, dark blue denim jeans, white canvas shoes',
       status: 'Potential Match',
       priority: 'Critical',
@@ -136,46 +173,79 @@ export const initialMemoryStore: SeedData = {
       updatedAt: '2026-09-04T10:00:00.000Z'
     }
   ],
+  faceRepresentations: [
+    {
+      id: 'emb-aarav-1',
+      caseId: 'MP-2026-0001',
+      photoUrl: 'https://images.unsplash.com/photo-1543610892-0b1f7e6d8ac1?auto=format&fit=crop&w=600&q=80',
+      embedding: seedEmbeddings.aarav,
+      model: 'PyTorch-ResNet18-512d',
+      quality: { blur_score: 91.2, lighting_score: 87.5, pose_angle: 4.0, overall_quality: 0.92 },
+      createdAt: '2026-09-05T15:50:00.000Z'
+    },
+    {
+      id: 'emb-priya-1',
+      caseId: 'MP-2026-0002',
+      photoUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80',
+      embedding: seedEmbeddings.priya,
+      model: 'PyTorch-ResNet18-512d',
+      quality: { blur_score: 88.0, lighting_score: 84.0, pose_angle: 6.5, overall_quality: 0.88 },
+      createdAt: '2026-09-06T20:15:00.000Z'
+    },
+    {
+      id: 'emb-rohan-1',
+      caseId: 'MP-2026-0003',
+      photoUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=600&q=80',
+      embedding: seedEmbeddings.rohan,
+      model: 'PyTorch-ResNet18-512d',
+      quality: { blur_score: 85.5, lighting_score: 82.0, pose_angle: 7.0, overall_quality: 0.84 },
+      createdAt: '2026-09-04T10:05:00.000Z'
+    }
+  ],
   cameras: [
     {
       cameraId: 'CAM-01',
       name: 'Railway Station Gate 3 Feed',
-      location: 'New Delhi Railway Station - Main Entrance',
+      location: 'New Delhi Railway Station - Main Entrance Concourse',
       latitude: 28.6431,
       longitude: 77.2197,
       status: 'Online',
       resolution: '4K Ultra HD',
-      fps: 30
+      fps: 30,
+      type: 'Fixed Optical'
     },
     {
       cameraId: 'CAM-02',
       name: 'ISBT Concourse North',
-      location: 'Kashmere Gate Interstate Terminal',
+      location: 'Kashmere Gate Interstate Terminal 2',
       latitude: 28.6675,
       longitude: 77.2291,
       status: 'Online',
       resolution: '1080p Full HD',
-      fps: 30
+      fps: 30,
+      type: 'PTZ Dome'
     },
     {
       cameraId: 'CAM-03',
       name: 'Connaught Place Outer Ring',
-      location: 'CP Block B Roundabout',
+      location: 'CP Block B Roundabout Commercial Zone',
       latitude: 28.6328,
       longitude: 77.2195,
       status: 'Online',
       resolution: '1080p Full HD',
-      fps: 25
+      fps: 25,
+      type: 'Traffic Surveillance'
     },
     {
       cameraId: 'CAM-04',
-      name: 'Metro Station Exit Gate 2',
-      location: 'Rajiv Chowk Interchange',
-      latitude: 28.6329,
-      longitude: 77.2194,
+      name: 'Live Investigator Station (Webcam Feed)',
+      location: 'Command Control Center - Inspection Station',
+      latitude: 28.6139,
+      longitude: 77.2090,
       status: 'Online',
-      resolution: '4K Ultra HD',
-      fps: 60
+      resolution: '1080p Full HD',
+      fps: 30,
+      type: 'Live Browser Ingestion'
     }
   ],
   matches: [
@@ -223,11 +293,11 @@ export const initialMemoryStore: SeedData = {
       missingPersonName: 'Aarav Sharma',
       missingPersonPhoto: 'https://images.unsplash.com/photo-1543610892-0b1f7e6d8ac1?auto=format&fit=crop&w=600&q=80',
       detectedFrameUrl: 'https://images.unsplash.com/photo-1543610892-0b1f7e6d8ac1?auto=format&fit=crop&w=600&q=80',
-      cameraId: 'CAM-04',
-      cameraName: 'Metro Station Exit Gate 2',
-      location: 'Rajiv Chowk Metro Gate 2',
-      latitude: 28.6329,
-      longitude: 77.2194,
+      cameraId: 'CAM-03',
+      cameraName: 'Connaught Place Outer Ring',
+      location: 'CP Block B Roundabout',
+      latitude: 28.6328,
+      longitude: 77.2195,
       timestamp: '2026-09-07T16:05:00',
       similarityScore: 0.87,
       confidenceTier: 'HIGH',
@@ -254,7 +324,7 @@ export const initialMemoryStore: SeedData = {
       timestamp: '2026-09-05T16:00:00.000Z',
       user: 'Officer Ananya Sen',
       action: 'Reference Photos Uploaded',
-      description: 'Uploaded 2 high-quality reference face photographs for embedding extraction.'
+      description: 'Uploaded reference face photos and extracted 512-dim PyTorch embedding vectors.'
     },
     {
       id: 'evt-3',
@@ -262,7 +332,7 @@ export const initialMemoryStore: SeedData = {
       timestamp: '2026-09-07T14:00:00.000Z',
       user: 'Dr. Rajesh Rao',
       action: 'CCTV Evidence Uploaded',
-      description: 'Ingested 45-minute CCTV video stream from CAM-01 (Railway Station).'
+      description: 'Ingested CCTV video footage from CAM-01 (Railway Station).'
     },
     {
       id: 'evt-4',
@@ -270,7 +340,7 @@ export const initialMemoryStore: SeedData = {
       timestamp: '2026-09-07T14:32:00.000Z',
       user: 'ReturnHome AI Service',
       action: 'AI Analysis Completed',
-      description: 'Extracted 7,240 frames and detected 381 faces. Formed 18 deduplicated tracks.'
+      description: 'Extracted frames and detected faces via YuNet. Generated candidate matches.'
     },
     {
       id: 'evt-5',
@@ -278,7 +348,7 @@ export const initialMemoryStore: SeedData = {
       timestamp: '2026-09-07T14:32:10.000Z',
       user: 'ReturnHome AI Engine',
       action: 'Potential Match Detected',
-      description: 'Generated Candidate Match MATCH-2026-001 with 91% similarity score on CAM-01.'
+      description: 'Candidate Match MATCH-2026-001 flagged with 91% similarity score on CAM-01.'
     },
     {
       id: 'evt-6',
@@ -329,5 +399,60 @@ export const initialMemoryStore: SeedData = {
   reports: []
 };
 
-// Global in-memory cache
-export const memoryStore = { ...initialMemoryStore };
+// -------------------------------------------------------------
+// Database Persistence Layer
+// -------------------------------------------------------------
+
+function loadDatabase(): SeedData {
+  try {
+    if (fs.existsSync(DB_PATH)) {
+      const data = fs.readFileSync(DB_PATH, 'utf-8');
+      const parsed = JSON.parse(data);
+      console.log(`[ReturnHome DB] Loaded persisted database from ${DB_PATH} (${parsed.cases?.length || 0} cases, ${parsed.matches?.length || 0} matches).`);
+      
+      // Ensure all collections exist
+      return {
+        users: parsed.users || initialMemoryStore.users,
+        cases: parsed.cases || initialMemoryStore.cases,
+        faceRepresentations: parsed.faceRepresentations || initialMemoryStore.faceRepresentations,
+        cameras: parsed.cameras || initialMemoryStore.cameras,
+        matches: parsed.matches || initialMemoryStore.matches,
+        timeline: parsed.timeline || initialMemoryStore.timeline,
+        auditLogs: parsed.auditLogs || initialMemoryStore.auditLogs,
+        reports: parsed.reports || initialMemoryStore.reports,
+      };
+    }
+  } catch (err: any) {
+    console.warn(`[ReturnHome DB] Could not read disk database: ${err.message}. Initializing seed store.`);
+  }
+
+  // Initialize and persist seed store
+  try {
+    const dataDir = path.dirname(DB_PATH);
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir, { recursive: true });
+    }
+    fs.writeFileSync(DB_PATH, JSON.stringify(initialMemoryStore, null, 2), 'utf-8');
+    console.log(`[ReturnHome DB] Seed database successfully written to ${DB_PATH}`);
+  } catch (err: any) {
+    console.warn(`[ReturnHome DB] Failed to write initial seed DB: ${err.message}`);
+  }
+
+  return JSON.parse(JSON.stringify(initialMemoryStore));
+}
+
+export const memoryStore: SeedData = loadDatabase();
+
+export const saveToDisk = (): void => {
+  try {
+    const dataDir = path.dirname(DB_PATH);
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir, { recursive: true });
+    }
+    const tempPath = `${DB_PATH}.tmp`;
+    fs.writeFileSync(tempPath, JSON.stringify(memoryStore, null, 2), 'utf-8');
+    fs.renameSync(tempPath, DB_PATH);
+  } catch (err: any) {
+    console.error(`[ReturnHome DB] Persistence error saving to disk:`, err.message);
+  }
+};
