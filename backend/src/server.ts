@@ -12,6 +12,7 @@ import matchRoutes from './routes/matchRoutes';
 import videoRoutes from './routes/videoRoutes';
 import dashboardRoutes from './routes/dashboardRoutes';
 import auditRoutes from './routes/auditRoutes';
+import { protect } from './middleware/authMiddleware';
 
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
@@ -56,7 +57,7 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Serve static uploads
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+app.use('/uploads', protect, express.static(path.join(__dirname, '../uploads')));
 
 // Brand & System Header
 app.use((req, res, next) => {

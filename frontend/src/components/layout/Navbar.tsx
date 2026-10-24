@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { LogOut, ShieldCheck } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
 export const Navbar: React.FC = () => {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const [signingOut, setSigningOut] = useState(false);
   const [error, setError] = useState('');
   const handleSignOut = async () => {
@@ -11,6 +13,7 @@ export const Navbar: React.FC = () => {
     setError('');
     try {
       await logout();
+      navigate('/', { replace: true });
     } catch {
       setError('Could not end your server session. Please try again.');
     } finally {

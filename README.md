@@ -16,7 +16,7 @@ The investigator frontend does **not** currently upload video to the AI microser
 - Dashboard, candidate review, timeline, map, report, and audit screens populated with sample records.
 - A separate FastAPI computer-vision prototype. It is not wired to the investigator video screen and has not been validated for identity matching or operational decisions.
 - MongoDB-backed account registration and login; new access requests remain pending for administrator activation.
-- Prototype-only public reporting and settings screens. They do not provide an end-to-end external reporting or agency administration service.
+- The public `/public-report` route provides guidance only: there is no public submission form, API, report storage, or delivery to authorities. Settings are also prototype-only and do not provide end-to-end agency administration.
 - Audit records use application storage and are not immutable or cryptographically protected.
 
 > **Human review and prototype notice:** Any sample candidate display is illustrative. A model score does not establish identity, and the repository does not establish legal authority, privacy controls, production security, accuracy, reliability, or deployment readiness.

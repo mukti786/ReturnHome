@@ -1,22 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Users, 
-  GitCompare, 
-  CheckCircle2, 
-  AlertTriangle, 
-  Video, 
-  Clock, 
-  ArrowUpRight, 
-  BarChart3,
-  ShieldAlert
-} from 'lucide-react';
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from 'recharts';
+import { ArrowRight, ArrowUpRight, CheckCircle2, Clock3, GitCompare, Plus, ShieldAlert, Users } from 'lucide-react';
 import Sidebar from '../components/layout/Sidebar';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
 import BrandDisclaimer from '../components/branding/BrandDisclaimer';
-import LogoMark from '../components/branding/LogoMark';
 import { apiService } from '../services/api';
 import { MissingPersonCase, CandidateMatch, TimelineEvent, DashboardStats } from '../types';
 
@@ -33,261 +21,136 @@ export const DashboardPage: React.FC = () => {
   const [recentMatches, setRecentMatches] = useState<CandidateMatch[]>([]);
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
 
   useEffect(() => {
     async function loadData() {
       try {
-        const res = await apiService.getDashboardStats();
-        if (res.stats) setStats(res.stats);
-        if (res.recentCases) setRecentCases(res.recentCases);
-        if (res.recentMatches) setRecentMatches(res.recentMatches);
-        if (res.recentTimeline) setTimeline(res.recentTimeline);
-      } catch (err) {
-        console.warn('Dashboard data is unavailable.');
+        const response = await apiService.getDashboardStats();
+        if (response.stats) setStats(response.stats);
+        if (response.recentCases) setRecentCases(response.recentCases);
+        if (response.recentMatches) setRecentMatches(response.recentMatches);
+        if (response.recentTimeline) setTimeline(response.recentTimeline);
+      } catch (error) {
+        setLoadError(error instanceof Error ? error.message : 'Workspace information is unavailable.');
       } finally {
         setLoading(false);
       }
     }
-    loadData();
+    void loadData();
   }, []);
 
-  const monthlyTrendData: Array<{ month: string; cases: number; matches: number }> = [];
+  const metrics = [
+    { label: 'Case records', value: stats.totalCases, icon: Users, detail: 'All records in this workspace' },
+    { label: 'Active cases', value: stats.activeCases, icon: Clock3, detail: 'Open investigation records' },
+    { label: 'Potential leads', value: stats.potentialMatches, icon: GitCompare, detail: 'Require human review' },
+    { label: 'Resolved cases', value: stats.resolvedCases, icon: CheckCircle2, detail: 'Marked resolved in records' },
+  ];
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex">
+    <div className="flex min-h-screen bg-slate-50 text-slate-900">
       <Sidebar />
-
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex min-w-0 flex-1 flex-col">
         <Navbar />
-
-        <main className="flex-1 p-6 space-y-6 overflow-y-auto">
-          {/* Top Command Header */}
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-            <div className="flex items-center gap-3">
-              <LogoMark size="md" theme="dark" />
-              <div>
-                <h1 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
-                  ReturnHome Investigation Command Dashboard
-                </h1>
-                <p className="text-xs text-slate-600">
-                  Intelligent Missing Person Detection & Candidate Match Monitoring • <strong className="text-cyan-700 font-bold">“From Missing to Found.”</strong>
-                </p>
-              </div>
+        <main className="mx-auto w-full max-w-[1600px] flex-1 space-y-6 overflow-y-auto p-4 sm:p-6 lg:p-8">
+          <header className="flex flex-col justify-between gap-5 border-b border-slate-200 pb-6 sm:flex-row sm:items-end">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[.16em] text-[#356a5a]">Investigator workspace</p>
+              <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">Casework overview</h1>
+              <p className="mt-2 text-sm text-slate-600">Review case records, candidate leads and recent investigation activity.</p>
             </div>
-
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => navigate('/cases/new')}
-                className="px-4 py-2.5 rounded-xl bg-[#1d5147] hover:shadow-md text-white text-xs font-bold shadow-sm flex items-center gap-1.5 transition-all"
-              >
-                + Register New Case
+            <div className="flex flex-wrap gap-2">
+              <button type="button" onClick={() => navigate('/cases/new')} className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-[#1d5147] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#163f37]">
+                <Plus size={16} /> Register a case
               </button>
-              <button
-                onClick={() => navigate('/video-analysis')}
-                className="px-4 py-2.5 rounded-xl bg-slate-100 border border-slate-200 hover:bg-slate-200 text-slate-800 text-xs font-bold flex items-center gap-1.5 transition-all"
-              >
-                <Video className="w-4 h-4 text-indigo-600" /> Process CCTV Stream
+              <button type="button" onClick={() => navigate('/matches')} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+                Review potential leads <ArrowRight size={15} />
               </button>
             </div>
-          </div>
+          </header>
 
-          {/* Ethical Disclaimer */}
           <BrandDisclaimer variant="compact" />
 
-          {/* Top 5 KPI Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-            {[
-              { title: 'Total Missing Persons', value: stats.totalCases, icon: Users, color: 'text-indigo-600', bg: 'bg-indigo-50 border-indigo-200' },
-              { title: 'Active Cases', value: stats.activeCases, icon: AlertTriangle, color: 'text-blue-600', bg: 'bg-blue-50 border-blue-200' },
-              { title: 'Potential Matches', value: stats.potentialMatches, icon: GitCompare, color: 'text-amber-600', bg: 'bg-amber-50 border-amber-200', badge: 'Review Needed' },
-              { title: 'Verified Sightings', value: stats.verifiedMatches, icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50 border-emerald-200' },
-              { title: 'Cases Resolved', value: stats.resolvedCases, icon: ShieldAlert, color: 'text-teal-600', bg: 'bg-teal-50 border-teal-200' }
-            ].map((kpi, idx) => {
-              const Icon = kpi.icon;
+          {loadError && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{loadError} Refresh this page to try again.</div>}
+
+          <section aria-label="Casework summary" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {metrics.map((metric) => {
+              const Icon = metric.icon;
               return (
-                <div key={idx} className="p-4.5 rounded-2xl border border-slate-200 bg-white shadow-sm space-y-2 relative overflow-hidden hover:shadow-md transition-all">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-slate-600 font-bold">{kpi.title}</span>
-                    <div className={`p-2 rounded-xl ${kpi.bg}`}>
-                      <Icon className={`w-4 h-4 ${kpi.color}`} />
-                    </div>
+                <article key={metric.label} className="rounded-xl border border-slate-200 bg-white p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="grid h-9 w-9 place-items-center rounded-lg bg-slate-100 text-[#356a5a]"><Icon size={18} /></div>
+                    <div><h2 className="text-xs font-medium text-slate-500">{metric.label}</h2><p className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">{loading || loadError ? '—' : metric.value}</p></div>
                   </div>
-                  <div className="flex items-baseline justify-between pt-1">
-                    <span className="text-2xl font-black text-slate-900">{kpi.value}</span>
-                    {kpi.badge && (
-                      <span className="text-[9px] font-extrabold text-amber-800 bg-amber-100 border border-amber-200 px-2 py-0.5 rounded-md uppercase">
-                        {kpi.badge}
-                      </span>
-                    )}
-                  </div>
-                </div>
+                  <p className="mt-3 text-xs text-slate-500">{metric.detail}</p>
+                </article>
               );
             })}
-          </div>
+          </section>
 
-          {/* Main Grid: Recent Cases & Potential Matches */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            {/* Recent Cases Table */}
-            <div className="lg:col-span-7 bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
-                  <Users className="w-4 h-4 text-indigo-600" /> Recent Missing Person Cases
-                </h3>
-                <button
-                  onClick={() => navigate('/cases')}
-                  className="text-xs text-indigo-600 hover:underline flex items-center gap-1 font-bold"
-                >
-                  View All Cases <ArrowUpRight className="w-3.5 h-3.5" />
-                </button>
+          <div className="grid gap-5 xl:grid-cols-[1.15fr_.85fr]">
+            <section className="min-w-0 rounded-xl border border-slate-200 bg-white">
+              <div className="flex items-center justify-between gap-4 border-b border-slate-200 px-5 py-4">
+                <div><h2 className="text-sm font-semibold text-slate-900">Recent case records</h2><p className="mt-1 text-xs text-slate-500">Example records from this workspace</p></div>
+                <button type="button" onClick={() => navigate('/cases')} className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-[#356a5a] hover:underline">All cases <ArrowUpRight size={14} /></button>
               </div>
-
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead>
-                    <tr className="border-b border-slate-100 text-slate-500 font-extrabold uppercase text-[10px] bg-slate-50">
-                      <th className="py-2.5 px-3 rounded-l-lg">Case ID</th>
-                      <th className="py-2.5 px-3">Person</th>
-                      <th className="py-2.5 px-3">Age</th>
-                      <th className="py-2.5 px-3">Last Seen</th>
-                      <th className="py-2.5 px-3">Location</th>
-                      <th className="py-2.5 px-3 rounded-r-lg">Status</th>
-                    </tr>
-                  </thead>
+                <table className="w-full min-w-[680px] text-left text-sm">
+                  <thead><tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-semibold uppercase tracking-wide text-slate-500"><th className="px-4 py-3">Case</th><th className="px-4 py-3">Person</th><th className="px-4 py-3">Last seen</th><th className="px-4 py-3">Status</th></tr></thead>
                   <tbody className="divide-y divide-slate-100">
-                    {recentCases.map((c) => (
-                      <tr
-                        key={c.caseId}
-                        onClick={() => navigate(`/cases/${c.caseId}`)}
-                        className="hover:bg-slate-50 cursor-pointer transition-colors"
-                      >
-                        <td className="py-3 px-3 font-mono font-bold text-indigo-700">{c.caseId}</td>
-                        <td className="py-3 px-3 font-bold text-slate-900 flex items-center gap-2">
-                          <img
-                            src={c.photos[0] || 'https://images.unsplash.com/photo-1543610892-0b1f7e6d8ac1?auto=format&fit=crop&w=100&q=80'}
-                            alt={c.name}
-                            className="w-7.5 h-7.5 rounded-full object-cover border border-slate-300 shadow-sm"
-                          />
-                          <span>{c.name}</span>
-                        </td>
-                        <td className="py-3 px-3 text-slate-700 font-medium">{c.age} yrs</td>
-                        <td className="py-3 px-3 text-slate-500 font-medium">{c.lastSeenDate}</td>
-                        <td className="py-3 px-3 text-slate-700 font-medium max-w-[140px] truncate">{c.lastSeenLocation}</td>
-                        <td className="py-3 px-3">
-                          <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full ${
-                            c.status === 'Potential Match' ? 'bg-amber-100 text-amber-900 border border-amber-300' :
-                            c.status === 'Active' ? 'bg-blue-100 text-blue-900 border border-blue-300' :
-                            'bg-emerald-100 text-emerald-900 border border-emerald-300'
-                          }`}>
-                            {c.status}
-                          </span>
-                        </td>
+                    {loading && <tr><td colSpan={4} className="px-4 py-8 text-center text-sm text-slate-500">Loading case records…</td></tr>}
+                    {!loading && !recentCases.length && <tr><td colSpan={4} className="px-4 py-8 text-center text-sm text-slate-500">{loadError ? 'Case records could not be loaded.' : 'No case records are available.'}</td></tr>}
+                    {!loading && recentCases.map((record) => (
+                      <tr key={record.caseId} className="transition-colors hover:bg-slate-50">
+                        <td className="whitespace-nowrap px-4 py-3 font-mono text-xs font-semibold text-[#356a5a]"><button type="button" onClick={() => navigate('/cases/' + record.caseId)} className="rounded-sm underline-offset-4 hover:underline focus-visible:underline">{record.caseId}</button></td>
+                        <td className="px-4 py-3"><span className="font-medium text-slate-900">{record.name}</span><span className="mt-0.5 block text-xs text-slate-500">{record.age} years</span></td>
+                        <td className="whitespace-nowrap px-4 py-3 text-xs text-slate-600">{record.lastSeenDate}<span className="mt-0.5 block max-w-40 truncate text-slate-500">{record.lastSeenLocation}</span></td>
+                        <td className="px-4 py-3"><span className="rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">{record.status}</span></td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-            </div>
+            </section>
 
-            {/* Potential Matches Feed */}
-            <div className="lg:col-span-5 bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
-                  <GitCompare className="w-4 h-4 text-amber-600" /> Candidate Leads Feed
-                </h3>
-                <span className="text-[10px] bg-amber-100 text-amber-900 font-extrabold px-2 py-0.5 rounded border border-amber-300">
-                  HUMAN REVIEW REQUIRED
-                </span>
+            <section className="rounded-xl border border-slate-200 bg-white">
+              <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-5 py-4">
+                <div><h2 className="text-sm font-semibold text-slate-900">Candidate review</h2><p className="mt-1 text-xs text-slate-500">Every lead requires independent review</p></div>
+                <button type="button" onClick={() => navigate('/matches')} aria-label="Open candidate review" className="rounded-md p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900"><ArrowUpRight size={16} /></button>
               </div>
-
-              <div className="space-y-3">
-                {recentMatches.map((m) => (
-                  <div
-                    key={m.matchId}
-                    onClick={() => navigate(`/matches?id=${m.matchId}`)}
-                    className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl hover:border-indigo-400 hover:shadow-md transition-all cursor-pointer space-y-2.5"
-                  >
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-extrabold text-slate-900">{m.missingPersonName}</span>
-                      <span className="font-extrabold text-emerald-800 font-mono text-xs bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-md">
-                        {Math.round(m.similarityScore * 100)}% Similarity
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="text-center">
-                        <img
-                          src={m.missingPersonPhoto}
-                          alt="Reference"
-                          className="w-full h-20 object-cover rounded-lg border border-slate-300 shadow-sm"
-                        />
-                        <span className="text-[9px] text-slate-500 font-bold mt-1 block">Reference</span>
-                      </div>
-                      <div className="text-center">
-                        <img
-                          src={m.detectedFrameUrl}
-                          alt="Detected Frame"
-                          className="w-full h-20 object-cover rounded-lg border border-cyan-400 shadow-sm"
-                        />
-                        <span className="text-[9px] text-cyan-700 font-bold mt-1 block font-mono">CCTV Frame</span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between text-[11px] text-slate-600 pt-1 border-t border-slate-200/60 font-medium">
-                      <span>Camera: <strong className="text-slate-900">{m.cameraId}</strong></span>
-                      <span>Time: <strong className="text-slate-900">{m.timestamp.slice(11, 19)}</strong></span>
-                    </div>
-                  </div>
+              <div className="space-y-3 p-4">
+                {loading && <p role="status" className="py-8 text-center text-sm text-slate-500">Loading candidate leads…</p>}
+                {!loading && !recentMatches.length && <p className="py-8 text-center text-sm text-slate-500">{loadError ? 'Candidate leads could not be loaded.' : 'No candidate leads are available.'}</p>}
+                {!loading && recentMatches.map((match) => (
+                  <button key={match.matchId} type="button" onClick={() => navigate('/matches?id=' + encodeURIComponent(match.matchId))} className="w-full rounded-lg border border-slate-200 bg-slate-50 p-3 text-left transition-colors hover:bg-slate-100">
+                    <span className="flex items-center justify-between gap-3"><span className="truncate text-sm font-semibold text-slate-900">{match.missingPersonName}</span><span className="shrink-0 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 font-mono text-[11px] font-semibold text-amber-900">{Math.round(match.similarityScore * 100)}% similarity</span></span>
+                    <span className="mt-2 flex items-center justify-between gap-3 text-xs text-slate-500"><span className="truncate">Case {match.caseId}</span><span className="shrink-0">{match.timestamp.slice(0, 10)}</span></span>
+                    <span className="mt-2 block text-[11px] text-slate-500">Illustrative score only · human review required</span>
+                  </button>
                 ))}
               </div>
-            </div>
+            </section>
           </div>
 
-          {/* Bottom Grid: Analytics & Investigation Activity */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            {/* Bar Chart: Monthly Trends */}
-            <div className="lg:col-span-7 bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
-                  <BarChart3 className="w-4 h-4 text-indigo-600" /> Case Registration & Match Processing Trends
-                </h3>
-              </div>
-              {monthlyTrendData.length === 0 ? <p className="py-16 text-center text-sm text-slate-500">No historical trend data is available in this prototype.</p> : <div className="h-64 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={monthlyTrendData}>
-                    <XAxis dataKey="month" stroke="#64748B" fontSize={11} />
-                    <YAxis stroke="#64748B" fontSize={11} />
-                    <Tooltip contentStyle={{ backgroundColor: '#FFFFFF', borderColor: '#CBD5E1', borderRadius: '12px', color: '#0F172A', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }} />
-                    <Bar dataKey="cases" fill="#4F46E5" radius={[4, 4, 0, 0]} name="Registered Cases" />
-                    <Bar dataKey="matches" fill="#0EA5E9" radius={[4, 4, 0, 0]} name="Matches Surfaced" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>}</div>
-
-            {/* Timeline Activity Stream */}
-            <div className="lg:col-span-5 bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-indigo-600" /> Investigation Audit Stream
-                </h3>
-              </div>
-
-              <div className="space-y-3 relative pl-4 border-l-2 border-indigo-100 max-h-64 overflow-y-auto">
-                {timeline.map((evt) => (
-                  <div key={evt.id} className="relative space-y-1">
-                    <div className="absolute -left-[21px] top-1.5 w-2.5 h-2.5 rounded-full bg-indigo-600 border-2 border-white ring-2 ring-indigo-100" />
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-extrabold text-slate-900">{evt.action}</span>
-                      <span className="text-[10px] text-slate-400 font-mono">{evt.timestamp.slice(11, 16)}</span>
-                    </div>
-                    <p className="text-[11px] text-slate-600 leading-tight font-normal">{evt.description}</p>
-                    <span className="text-[10px] text-indigo-700 font-mono font-bold block">By {evt.user}</span>
-                  </div>
-                ))}
-              </div>
+          <section className="rounded-xl border border-slate-200 bg-white">
+            <div className="flex items-center justify-between gap-4 border-b border-slate-200 px-5 py-4">
+              <div><h2 className="text-sm font-semibold text-slate-900">Recent investigation activity</h2><p className="mt-1 text-xs text-slate-500">Audit and timeline entries in the workspace</p></div>
+              <button type="button" onClick={() => navigate('/timeline')} className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-[#356a5a] hover:underline">Open timeline <ArrowUpRight size={14} /></button>
             </div>
-          </div>
+            <div className="divide-y divide-slate-100 px-5">
+              {loading && <p role="status" className="py-6 text-sm text-slate-500">Loading recent activity…</p>}
+              {!loading && !timeline.length && <p className="py-6 text-sm text-slate-500">{loadError ? 'Recent activity could not be loaded.' : 'No recent activity is available.'}</p>}
+              {!loading && timeline.map((event) => (
+                <article key={event.id} className="flex flex-col gap-1 py-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+                  <div><h3 className="text-sm font-medium text-slate-900">{event.action}</h3><p className="mt-1 text-xs leading-5 text-slate-600">{event.description}</p></div>
+                  <p className="shrink-0 text-xs text-slate-500">{event.timestamp.replace('T', ' ').slice(0, 16)} · {event.user}</p>
+                </article>
+              ))}
+            </div>
+          </section>
+
+          <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-900"><ShieldAlert size={16} className="mt-0.5 shrink-0" /><p>Sample records and similarity scores are illustrative. Do not use them as evidence or as a basis for identity decisions.</p></div>
         </main>
-
         <Footer />
       </div>
     </div>
@@ -295,7 +158,4 @@ export const DashboardPage: React.FC = () => {
 };
 
 export default DashboardPage;
-
-
-
 
