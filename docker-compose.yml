@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  frontend:
+    build: ./frontend
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_APP_NAME=ReturnHome
+      - VITE_APP_TAGLINE=From Missing to Found.
+    depends_on:
+      - backend
+
+  backend:
+    build: ./backend
+    ports:
+      - "5000:5000"
+    environment:
+      - PORT=5000
+      - MONGO_URI=mongodb://mongo:27017/khojsetu
+      - JWT_SECRET=khojsetu_jwt_secret_key_2026_investigation_secure_token
+      - AI_SERVICE_URL=http://ai-service:8000
+    depends_on:
+      - mongo
+      - ai-service
+
+  ai-service:
+    build: ./ai-service
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+
+  mongo:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+volumes:
+  mongo_data:

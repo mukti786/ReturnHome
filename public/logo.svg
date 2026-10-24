@@ -1,0 +1,17 @@
+<svg width="240" height="60" viewBox="0 0 240 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="khoj-logo-grad" x1="5" y1="5" x2="55" y2="55" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#4338CA" />
+      <stop offset="50%" stop-color="#0284C7" />
+      <stop offset="100%" stop-color="#0D9488" />
+    </linearGradient>
+  </defs>
+  <g transform="translate(5, 5)">
+    <path d="M25 4C15.6 4 8 11.6 8 21C8 31.5 21 44 24 46.75C24.6 47.3 25.4 47.3 26 46.75C29 44 42 31.5 42 21C42 11.6 34.4 4 25 4Z" fill="url(#khoj-logo-grad)" />
+    <circle cx="23" cy="19" r="9" stroke="#FFFFFF" stroke-width="3" fill="none" />
+    <path d="M29.5 25.5L36 32" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" />
+    <circle cx="23" cy="17" r="2.5" fill="#F59E0B" />
+  </g>
+  <text x="60" y="36" font-family="Inter, sans-serif" font-weight="800" font-size="26" fill="#0F172A">Return<tspan fill="#06B6D4">Home</tspan></text>
+  <text x="60" y="50" font-family="Inter, sans-serif" font-weight="500" font-size="10" fill="#64748B" letter-spacing="0.5">From Missing to Found.</text>
+</svg>

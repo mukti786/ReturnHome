@@ -1,0 +1,13 @@
+<svg width="32" height="32" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="khoj-fav" x1="10" y1="10" x2="90" y2="90" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#4338CA" />
+      <stop offset="50%" stop-color="#0284C7" />
+      <stop offset="100%" stop-color="#0D9488" />
+    </linearGradient>
+  </defs>
+  <path d="M50 8C31.2 8 16 23.2 16 42C16 63 42 88 48 93.5C49.2 94.6 50.8 94.6 52 93.5C58 88 84 63 84 42C84 23.2 68.8 8 50 8Z" fill="url(#khoj-fav)" />
+  <circle cx="46" cy="38" r="18" stroke="#FFFFFF" stroke-width="6" fill="none" />
+  <path d="M59 51L72 64" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" />
+  <circle cx="46" cy="34" r="5" fill="#F59E0B" />
+</svg>
