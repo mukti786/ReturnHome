@@ -9,6 +9,17 @@ export interface User {
   phone?: string;
   status: 'Active' | 'Inactive' | 'Pending';
   createdAt: string;
+  isDemo?: boolean;
+}
+
+export interface PublicReportItem {
+  _id: string;
+  referenceId: string;
+  status: 'Pending Review' | 'Reviewed';
+  createdAt: string;
+  missingPerson: { fullName: string; age?: number; dateOfBirth?: string; gender?: string; photoUrl?: string; physicalDescription?: string; identifyingMarks?: string; clothing?: string; additionalInformation?: string };
+  lastSeen: { date?: string; time?: string; address: string; city?: string; state?: string; country?: string; latitude?: number; longitude?: number; circumstances?: string };
+  reporter: { name: string; phone?: string; email?: string; relationship?: string; preferredContact?: string };
 }
 
 export type CaseStatus = 'Active' | 'Under Investigation' | 'Potential Match' | 'Found' | 'Closed';

@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { User } from '../models/User';
 import { isMongoConnected } from '../config/db';
+import { getDevAuthSecret, isDevAuthEnabled } from '../config/devAuth';
 
 export interface AuthRequest extends Request {
   user?: {
@@ -11,6 +12,7 @@ export interface AuthRequest extends Request {
     role: string;
     organization: string;
     status: string;
+    isDemo?: boolean;
   };
 }
 
@@ -23,15 +25,36 @@ const readCookie = (header: string | undefined, name: string): string | undefine
 };
 
 export const protect = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  if (!isMongoConnected) {
-    return res.status(503).json({ success: false, message: 'Authentication requires a configured MongoDB connection.' });
-  }
   const token = readCookie(req.headers.cookie, SESSION_COOKIE);
   if (!token) {
     return res.status(401).json({ success: false, message: 'Sign in to continue.' });
   }
 
   try {
+    if (isDevAuthEnabled()) {
+      try {
+        const demoClaims = jwt.verify(token, getDevAuthSecret(), {
+          issuer: 'returnhome-dev', audience: 'returnhome-web'
+        }) as jwt.JwtPayload;
+        if (demoClaims.isDemo === true && demoClaims.sub === 'local-demo-investigator') {
+          req.user = {
+            id: 'local-demo-investigator',
+            name: 'Local demo investigator (NOT VERIFIED)',
+            email: 'local-demo@invalid.example',
+            role: 'Investigator',
+            organization: 'Local development only',
+            status: 'Active',
+            isDemo: true
+          };
+          return next();
+        }
+      } catch {
+        // Continue with normal signed-in user validation below.
+      }
+    }
+    if (!isMongoConnected) {
+      return res.status(503).json({ success: false, message: 'Authentication requires a configured MongoDB connection.' });
+    }
     const secret = process.env.JWT_SECRET;
     if (!secret || secret.length < 32 || secret.includes('replace-with')) {
       return res.status(503).json({ success: false, message: 'Authentication is not configured.' });

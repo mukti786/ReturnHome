@@ -12,9 +12,17 @@ import matchRoutes from './routes/matchRoutes';
 import videoRoutes from './routes/videoRoutes';
 import dashboardRoutes from './routes/dashboardRoutes';
 import auditRoutes from './routes/auditRoutes';
+import publicReportRoutes from './routes/publicReportRoutes';
 import { protect } from './middleware/authMiddleware';
 
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+
+// npm's dev script is the only implicit development entry point; production start stays closed by default.
+if (process.env.npm_lifecycle_event === 'start') process.env.NODE_ENV = 'production';
+else if (!process.env.NODE_ENV) process.env.NODE_ENV = process.env.npm_lifecycle_event === 'dev' ? 'development' : 'production';
+if (process.env.DEV_AUTH_BYPASS === 'true' && (process.env.NODE_ENV !== 'development' || process.env.npm_lifecycle_event !== 'dev')) {
+  throw new Error('DEV_AUTH_BYPASS=true is only allowed with NODE_ENV=development via the backend npm run dev script.');
+}
 
 const app = express();
 const server = http.createServer(app);
@@ -96,6 +104,7 @@ app.get('/api', (req, res) => {
 
 // REST Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/public-reports', publicReportRoutes);
 app.use('/api/cases', caseRoutes);
 app.use('/api/matches', matchRoutes);
 app.use('/api/videos', videoRoutes);

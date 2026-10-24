@@ -8,7 +8,7 @@ import { apiService } from '../services/api';
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login } = useAuth();
+  const { login, loginDemo } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -16,6 +16,8 @@ export const LoginPage: React.FC = () => {
   const [resetLoading, setResetLoading] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [demoLoading, setDemoLoading] = useState(false);
+  const devDemoEnabled = import.meta.env.DEV && import.meta.env.VITE_DEV_AUTH_BYPASS === 'true';
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -32,6 +34,16 @@ export const LoginPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDemoLogin = async () => {
+    setError(''); setDemoLoading(true);
+    try {
+      await loginDemo();
+      navigate('/dashboard', { replace: true });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Local demo access is unavailable.');
+    } finally { setDemoLoading(false); }
   };
 
   const handleReset = async () => {
@@ -65,6 +77,10 @@ export const LoginPage: React.FC = () => {
           <div className="flex justify-end"><button type="button" onClick={handleReset} disabled={resetLoading} className="text-sm font-medium text-[#245c4c] underline-offset-2 hover:underline disabled:opacity-60">{resetLoading ? 'Checking availability…' : 'Forgot password?'}</button></div>
           <button type="submit" disabled={loading} className="inline-flex min-h-12 w-full items-center justify-center rounded-lg bg-[#1d5147] px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#163f37] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d5147] disabled:cursor-wait disabled:opacity-60">{loading ? 'Signing in…' : 'Sign in'}</button>
         </form>
+        {devDemoEnabled && <div className="mt-5 border-t border-slate-200 pt-5">
+          <button type="button" onClick={handleDemoLogin} disabled={demoLoading} className="min-h-11 w-full rounded-lg border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm font-semibold text-amber-950 hover:bg-amber-100 disabled:opacity-60">{demoLoading ? 'Opening local demo…' : 'Enter local demo workspace'}</button>
+          <p className="mt-2 text-center text-xs leading-5 text-amber-800">Development only · demo identity is unverified · no MongoDB account</p>
+        </div>}
       </div>
       <div className="mt-5 flex items-start gap-2 rounded-xl border border-slate-200 bg-white/70 p-3.5 text-xs leading-5 text-slate-600"><ShieldCheck size={15} className="mt-0.5 shrink-0 text-[#356a5a]" /> Your session uses a server-issued, HTTP-only cookie. Sign in only on a deployment approved by your organization.</div>
       <p className="mt-6 text-center text-sm text-slate-600">Need access? <Link to="/register" className="font-semibold text-[#245c4c] hover:underline">Request an account</Link></p>

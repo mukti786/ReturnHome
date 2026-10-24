@@ -11,7 +11,7 @@ const capabilities = [
 ];
 
 const steps = [
-  { number: '01', title: 'Public information', body: 'The public route explains how to report directly to the appropriate authorities. This prototype does not receive or deliver a report.' },
+  { number: '01', title: 'Public report', body: 'Submit details to this ReturnHome deployment for protected investigator review. It is not an official police report or emergency channel.' },
   { number: '02', title: 'Investigator casework', body: 'Authorized users sign in to manage case records and review the sample investigation screens.' },
   { number: '03', title: 'Human review', body: 'Potential matches are leads for authorized review. They do not confirm a person’s identity.' },
 ];
@@ -30,7 +30,7 @@ export const LandingPage: React.FC = () => {
             <Link className="text-sm text-slate-600 hover:text-slate-950" to="/public-report">Public reporting</Link>
           </div>
           <div className="hidden items-center gap-3 md:flex">
-            <Link to="/login" className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-100">Investigator Sign In</Link>
+            <Link to="/login" className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-100">Open Investigator Workspace</Link>
             <Link to="/public-report" className="inline-flex items-center gap-2 rounded-lg bg-[#1d5147] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#163f37]">Report a Missing Person <ArrowRight size={16} /></Link>
           </div>
           <button type="button" className="rounded-lg p-2 text-slate-700 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 md:hidden" aria-label={menuOpen ? 'Close navigation menu' : 'Open navigation menu'} aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? <X size={22} /> : <Menu size={22} />}</button>
@@ -49,7 +49,7 @@ export const LandingPage: React.FC = () => {
             <div className="max-w-3xl">
               <p className="mb-5 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[.18em] text-[#356a5a]"><span className="h-px w-7 bg-[#356a5a]" /> ReturnHome · Public-interest prototype</p>
               <h1 className="max-w-2xl text-5xl font-semibold leading-[1.05] tracking-[-.045em] text-[#172522] sm:text-6xl lg:text-7xl">Help bring someone home.</h1>
-              <p className="mt-6 max-w-2xl text-base leading-7 text-slate-600 sm:text-lg sm:leading-8">A clear starting point for public reporting information and investigator casework. ReturnHome is a prototype; its public route does not accept reports, and its sample investigation records are not operational evidence.</p>
+              <p className="mt-6 max-w-2xl text-base leading-7 text-slate-600 sm:text-lg sm:leading-8">Share a missing-person report with this ReturnHome deployment, or open the investigator workspace to review reports and manage casework. Sample investigation records are illustrative and are not operational evidence.</p>
               <a href="#choose-path" className="mt-8 inline-flex items-center gap-2 text-sm font-semibold text-[#245c4c] hover:underline">Choose a path <ArrowRight size={16} /></a>
             </div>
 
@@ -58,7 +58,7 @@ export const LandingPage: React.FC = () => {
               <div className="mt-6 space-y-6">
                 <div className="flex gap-4"><HeartHandshake className="mt-0.5 h-5 w-5 shrink-0 text-[#356a5a]" /><div><h2 className="text-sm font-semibold text-slate-900">A human response comes first</h2><p className="mt-1 text-sm leading-6 text-slate-600">For urgent situations, contact local emergency services directly.</p></div></div>
                 <div className="flex gap-4"><UserRoundCheck className="mt-0.5 h-5 w-5 shrink-0 text-[#356a5a]" /><div><h2 className="text-sm font-semibold text-slate-900">Review stays with people</h2><p className="mt-1 text-sm leading-6 text-slate-600">A potential match is only a lead for an authorized reviewer.</p></div></div>
-                <div className="flex gap-4"><ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-[#356a5a]" /><div><h2 className="text-sm font-semibold text-slate-900">Clear about its limits</h2><p className="mt-1 text-sm leading-6 text-slate-600">The prototype does not contact agencies or process public submissions.</p></div></div>
+                <div className="flex gap-4"><ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-[#356a5a]" /><div><h2 className="text-sm font-semibold text-slate-900">Clear about its limits</h2><p className="mt-1 text-sm leading-6 text-slate-600">Reports are stored here for review when MongoDB is available; nothing is sent to agencies or emergency services.</p></div></div>
               </div>
             </aside>
           </div>
@@ -72,14 +72,14 @@ export const LandingPage: React.FC = () => {
                 <div className="flex items-center gap-3"><div className="grid h-11 w-11 place-items-center rounded-xl bg-[#edf2ed] text-[#356a5a]"><ClipboardList size={21} /></div><p className="text-xs font-semibold uppercase tracking-[.15em] text-slate-500">Investigator workspace</p></div>
                 <h3 className="mt-6 text-2xl font-semibold tracking-tight text-slate-900">For Investigators</h3>
                 <p className="mt-3 max-w-xl text-sm leading-6 text-slate-600">Manage missing-person cases, review potential matches, and coordinate investigation workflows in one workspace.</p>
-                <div className="mt-auto pt-7"><Link to="/login" className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-[#1d5147] px-4 py-3 text-sm font-semibold text-white hover:bg-[#163f37]">Investigator Sign In <ArrowRight size={16} /></Link><p className="mt-3 text-xs text-slate-500">Need access? <Link to="/register" className="font-semibold text-[#245c4c] hover:underline">Request investigator access</Link></p></div>
+                <div className="mt-auto pt-7"><Link to="/login" className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-[#1d5147] px-4 py-3 text-sm font-semibold text-white hover:bg-[#163f37]">Open Investigator Workspace <ArrowRight size={16} /></Link><p className="mt-3 text-xs text-slate-500">Need access? <Link to="/register" className="font-semibold text-[#245c4c] hover:underline">Request investigator access</Link></p></div>
               </article>
 
               <article className="flex flex-col rounded-2xl border border-slate-200 bg-white p-6 sm:p-8">
                 <div className="flex items-center gap-3"><div className="grid h-11 w-11 place-items-center rounded-xl bg-[#edf2ed] text-[#356a5a]"><HeartHandshake size={21} /></div><p className="text-xs font-semibold uppercase tracking-[.15em] text-slate-500">Public information</p></div>
                 <h3 className="mt-6 text-2xl font-semibold tracking-tight text-slate-900">Report a Missing Person</h3>
-                <p className="mt-3 max-w-xl text-sm leading-6 text-slate-600">Help bring someone home. Share information about a missing person or provide information that may assist an investigation.</p>
-                <div className="mt-auto pt-7"><Link to="/public-report" className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-[#1d5147] px-4 py-3 text-sm font-semibold text-white hover:bg-[#163f37]">Report a Missing Person <ArrowRight size={16} /></Link><p className="mt-3 text-xs leading-5 text-amber-700">This prototype cannot accept or deliver a report. The next page explains how to contact authorities directly.</p></div>
+                <p className="mt-3 max-w-xl text-sm leading-6 text-slate-600">Share the details with this deployment for investigator review. For urgent danger, contact your local emergency services directly.</p>
+                <div className="mt-auto pt-7"><Link to="/public-report" className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-[#1d5147] px-4 py-3 text-sm font-semibold text-white hover:bg-[#163f37]">Report a Missing Person <ArrowRight size={16} /></Link><p className="mt-3 text-xs leading-5 text-amber-700">This form does not create an official report or notify authorities.</p></div>
               </article>
             </div>
           </div>
@@ -102,7 +102,7 @@ export const LandingPage: React.FC = () => {
         <section id="responsible-use" className="border-y border-[#d8e1d8] bg-[#edf2ed] px-5 py-12 sm:px-8 sm:py-16">
           <div className="mx-auto grid max-w-7xl gap-6 md:grid-cols-[auto_1fr] md:items-start">
             <div className="grid h-12 w-12 place-items-center rounded-xl bg-white text-[#356a5a]"><BadgeCheck size={23} /></div>
-            <div className="max-w-3xl"><p className="text-xs font-bold uppercase tracking-[.16em] text-[#356a5a]">Trust and limitations</p><h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">A potential match is a lead to review, not a finding.</h2><p className="mt-3 text-sm leading-6 text-slate-700">ReturnHome is a prototype, not an emergency service or an operational reporting channel. Public submissions are not stored or delivered. Sample records and similarity scores are illustrative only; they do not establish identity or show real investigation outcomes.</p><Link to="/privacy" className="mt-4 inline-flex text-sm font-semibold text-[#245c4c] hover:underline">Read privacy notes <ArrowRight size={15} className="ml-1" /></Link></div>
+            <div className="max-w-3xl"><p className="text-xs font-bold uppercase tracking-[.16em] text-[#356a5a]">Trust and limitations</p><h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">A potential match is a lead to review, not a finding.</h2><p className="mt-3 text-sm leading-6 text-slate-700">ReturnHome is not an emergency service. Reports are saved to this deployment’s configured MongoDB for authorized review, not forwarded to an agency. Sample records and similarity scores are illustrative only; they do not establish identity or show real investigation outcomes.</p><Link to="/privacy" className="mt-4 inline-flex text-sm font-semibold text-[#245c4c] hover:underline">Read privacy notes <ArrowRight size={15} className="ml-1" /></Link></div>
           </div>
         </section>
       </main>

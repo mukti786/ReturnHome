@@ -10,6 +10,7 @@ interface AuthContextType {
   activeRole: UserRole;
   isDemoMode: boolean;
   login: (email: string, pass: string) => Promise<boolean>;
+  loginDemo: () => Promise<void>;
   register: (user: { name: string; email: string; organization: string; password: string }) => Promise<string>;
   logout: () => Promise<void>;
   switchRole: (role: UserRole) => void;
@@ -25,7 +26,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     apiService.getMe()
-      .then((result) => setUser(result.user))
+      .then((result) => { setUser(result.user); setIsDemoMode(!!result.user.isDemo); })
       .catch(() => setUser(null))
       .finally(() => setIsLoading(false));
   }, []);
@@ -35,7 +36,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const result = await apiService.login(email, pass);
       setUser(result.user);
+      setIsDemoMode(!!result.user.isDemo);
       return true;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loginDemo = async () => {
+    setIsLoading(true);
+    try {
+      const result = await apiService.devLogin();
+      setUser(result.user);
+      setIsDemoMode(true);
     } finally {
       setIsLoading(false);
     }
@@ -65,6 +78,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       activeRole: user?.role || 'Public',
       isDemoMode,
       login,
+      loginDemo,
       register,
       logout,
       switchRole,

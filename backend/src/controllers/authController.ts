@@ -5,6 +5,7 @@ import { memoryStore } from '../store/memoryStore';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { isMongoConnected } from '../config/db';
 import { User } from '../models/User';
+import { getDevAuthSecret, isDevAuthEnabled } from '../config/devAuth';
 
 const SESSION_COOKIE = 'returnhome_session';
 const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
@@ -32,8 +33,34 @@ const publicUser = (user: any) => ({
   role: user.role,
   organization: user.organization,
   status: user.status,
-  createdAt: user.createdAt
+  createdAt: user.createdAt,
+  ...(user.isDemo ? { isDemo: true } : {})
 });
+
+export const devLogin = (req: Request, res: Response) => {
+  if (!isDevAuthEnabled()) {
+    return res.status(404).json({ success: false, message: 'Local demo access is not enabled.' });
+  }
+  const token = jwt.sign(
+    { sub: 'local-demo-investigator', isDemo: true },
+    getDevAuthSecret(),
+    { expiresIn: '8h', issuer: 'returnhome-dev', audience: 'returnhome-web' }
+  );
+  res.cookie(SESSION_COOKIE, token, { ...cookieOptions(), maxAge: 8 * 60 * 60 * 1000 });
+  return res.json({
+    success: true,
+    user: {
+      id: 'local-demo-investigator',
+      name: 'Local demo investigator (NOT VERIFIED)',
+      email: 'local-demo@invalid.example',
+      role: 'Investigator',
+      organization: 'Local development only',
+      status: 'Active',
+      createdAt: new Date().toISOString(),
+      isDemo: true
+    }
+  });
+};
 
 const authUnavailable = (res: Response) =>
   res.status(503).json({ success: false, message: 'Authentication requires a configured MongoDB connection.' });

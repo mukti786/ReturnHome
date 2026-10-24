@@ -1,13 +1,15 @@
-import { User, MissingPersonCase, CandidateMatch, TimelineEvent, AuditLogItem, DashboardStats } from '../types';
+import { User, MissingPersonCase, CandidateMatch, TimelineEvent, AuditLogItem, DashboardStats, PublicReportItem } from '../types';
 
 const API_BASE_URL = '/api';
 const API_TIMEOUT_MS = 8000;
 
 async function fetchAPI<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
     ...(options.headers as Record<string, string>),
   };
+  if (!(options.body instanceof FormData) && !Object.keys(headers).some((key) => key.toLowerCase() === 'content-type')) {
+    headers['Content-Type'] = 'application/json';
+  }
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), API_TIMEOUT_MS);
   let response: Response;
@@ -43,6 +45,20 @@ export const apiService = {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     });
+  },
+
+  async devLogin() {
+    return fetchAPI<{ success: boolean; user: User }>('/auth/dev-login', { method: 'POST' });
+  },
+
+  async createPublicReport(formData: FormData) {
+    return fetchAPI<{ success: boolean; report: { referenceId: string; status: string }; message: string }>('/public-reports', {
+      method: 'POST', body: formData
+    });
+  },
+
+  async getPublicReports() {
+    return fetchAPI<{ success: boolean; total: number; reports: PublicReportItem[] }>('/public-reports');
   },
 
   async register(userData: { name: string; email: string; password: string; organization: string }) {

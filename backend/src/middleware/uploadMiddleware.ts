@@ -52,6 +52,23 @@ export const uploadCasePhoto = multer({
   limits: { fileSize: 15 * 1024 * 1024 } // 15 MB
 });
 
+export const uploadPublicReportPhoto = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, casesDir),
+    filename: (_req, file, cb) => {
+      const extension = file.mimetype === 'image/png' ? '.png' : file.mimetype === 'image/webp' ? '.webp' : '.jpg';
+      cb(null, `public-report-${Date.now()}-${Math.round(Math.random() * 1e6)}${extension}`);
+    }
+  }),
+  limits: { fileSize: 8 * 1024 * 1024, files: 1, fields: 30, parts: 31, fieldSize: 8000 },
+  fileFilter: (_req, file, cb) => {
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.mimetype)) {
+      return cb(new Error('Choose a JPEG, PNG, or WebP photo.'));
+    }
+    return cb(null, true);
+  }
+});
+
 export const uploadVideoFile = multer({
   storage: videoStorage,
   limits: { fileSize: 250 * 1024 * 1024 } // 250 MB
