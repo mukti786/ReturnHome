@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import bcrypt from 'bcryptjs';
+import path from 'path';
 import { User } from './models/User';
 import { MissingPerson } from './models/MissingPerson';
 import { Camera } from './models/Camera';
@@ -8,7 +9,7 @@ import { Match } from './models/Match';
 import { AuditLog } from './models/AuditLog';
 import { initialMemoryStore } from './store/memoryStore';
 
-dotenv.config();
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 const MONGO_URI = process.env.MONGO_URI;
 const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL?.trim().toLowerCase();

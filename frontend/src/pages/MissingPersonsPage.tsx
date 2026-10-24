@@ -45,7 +45,7 @@ export const MissingPersonsPage: React.FC = () => {
           {/* Header */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
             <div className="flex items-center gap-3">
-              <LogoMark size="md" theme="light" />
+              <LogoMark size="md" theme="dark" />
               <div>
                 <h1 className="text-xl font-extrabold text-slate-900">Missing Person Case Directory</h1>
                 <p className="text-xs text-slate-600">

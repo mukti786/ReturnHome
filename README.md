@@ -147,11 +147,11 @@ ReturnHome/
 
 ## 7. Authentication and Deployment Setup
 
-The browser no longer has a demo-login fallback. Account registration stores a bcrypt password hash in MongoDB and creates a pending investigator access request. An administrator must activate the account in the database before sign-in. Login uses a server-issued HTTP-only, SameSite=Strict cookie; protected application routes and APIs require an active MongoDB account.
+The browser no longer has a demo-login fallback. Account registration stores a bcrypt password hash in MongoDB and creates a pending investigator access request. An administrator must activate the account in the database before sign-in. Login uses a server-issued HTTP-only, SameSite=Strict cookie; protected application routes and APIs require an active MongoDB account. Backend startup and the seed script load the repository-root `.env`, including when run from `backend/`.
 
-1. Copy `.env.example` to `.env`, configure MongoDB, and replace `JWT_SECRET` with a random secret of at least 32 characters.
-2. Set `SEED_ADMIN_EMAIL` and a unique `SEED_ADMIN_PASSWORD` of at least 12 characters, then run `npm run seed` to create the initial admin and add any missing demonstration records. The seed no longer clears existing collections.
-3. Start the backend and frontend services. New registrations remain pending until an administrator activates them. For a manually reviewed request, an authorized MongoDB administrator can activate the corresponding account with `db.users.updateOne({ email: "person@agency.gov" }, { $set: { status: "Active" } })`.
+1. From the repository root, copy `.env.example` to `.env`; configure MongoDB and replace `JWT_SECRET` with a random secret of at least 32 characters.
+2. Set `SEED_ADMIN_EMAIL` and a unique `SEED_ADMIN_PASSWORD` of at least 12 characters in `.env`. Start MongoDB, then run `npm run seed` from `backend/` to create that active administrator and add any missing demonstration records. The seed no longer clears existing collections. Sign in with the email and password you configured; no built-in demo credentials are provided.
+3. Start the backend from `backend/` with `npm run dev` and the frontend from `frontend/` with `npm run dev`. New registrations remain pending until an administrator activates them. For a manually reviewed request, an authorized MongoDB administrator can activate the corresponding account with `db.users.updateOne({ email: "person@agency.gov" }, { $set: { status: "Active" } })`.
 4. Password reset email delivery and email verification are not implemented. Contact the deploying organization's administrator for account recovery or activation.
 
 Do not use the included sample records or this prototype with real missing-person, face, video, or investigation information. Production use requires an organization-led security and legal review, tested data retention/deletion controls, secure deployment configuration, and operational approval. Audit logs currently use application/database storage and are not immutable or cryptographically protected.

@@ -42,7 +42,7 @@ export const Sidebar: React.FC = () => {
     <aside className="w-64 shrink-0 bg-white border-r border-slate-200 text-slate-700 flex flex-col h-screen sticky top-0 z-30 shadow-sm transition-colors">
       {/* Brand Header */}
       <div className="p-4 border-b border-slate-100 flex items-center justify-between">
-        <Logo variant="full" theme="light" size="md" showTagline={false} />
+        <Logo variant="full" theme="dark" size="md" showTagline={false} />
       </div>
 
       {/* Navigation Links */}

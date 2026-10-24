@@ -55,7 +55,7 @@ export const LoginPage: React.FC = () => {
   return <main className="flex min-h-screen flex-col bg-[#f4f5f1] px-5 py-8 sm:justify-center sm:py-12">
     <Link to="/" className="mx-auto flex w-full max-w-5xl items-center gap-2 text-sm text-slate-600 hover:text-slate-900"><ArrowLeft size={16} /> Return to home</Link>
     <div className="mx-auto mt-8 w-full max-w-md sm:mt-10">
-      <div className="text-center"><Link to="/"><Logo variant="full" theme="light" size="lg" showTagline={false} /></Link><div className="mx-auto mt-7 grid h-11 w-11 place-items-center rounded-xl bg-[#e5ede6] text-[#356a5a]"><LockKeyhole size={20} /></div><h1 className="mt-4 text-2xl font-semibold tracking-tight text-slate-900">Investigator sign in</h1><p className="mt-2 text-sm leading-6 text-slate-600">Use an active account approved by your organization.</p></div>
+      <div className="text-center"><Link to="/"><Logo variant="full" theme="dark" size="lg" showTagline={false} /></Link><div className="mx-auto mt-7 grid h-11 w-11 place-items-center rounded-xl bg-[#e5ede6] text-[#356a5a]"><LockKeyhole size={20} /></div><h1 className="mt-4 text-2xl font-semibold tracking-tight text-slate-900">Investigator sign in</h1><p className="mt-2 text-sm leading-6 text-slate-600">Use an active account approved by your organization.</p></div>
       <div className="mt-7 rounded-2xl border border-slate-200 bg-white p-6 shadow-[0_16px_48px_-32px_rgba(15,23,42,.32)] sm:p-8">
         {error && <div role="alert" className="mb-5 rounded-lg border border-red-200 bg-red-50 px-3.5 py-3 text-sm text-red-800">{error}</div>}
         {notice && <div role="status" className="mb-5 rounded-lg border border-[#d8e3d9] bg-[#f4f7f2] px-3.5 py-3 text-sm text-slate-700">{notice}</div>}

@@ -25,21 +25,23 @@ const InfoPage = lazy(() => import('./pages/InfoPage'));
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
-  if (isLoading) return <div className="min-h-screen grid place-items-center text-slate-600" role="status">Checking your session…</div>;
+  if (isLoading) return <div className="min-h-screen grid place-items-center bg-slate-950 text-slate-400" role="status">Checking your session…</div>;
   if (!isAuthenticated) return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   return <>{children}</>;
 };
 
 const GuestRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, isLoading } = useAuth();
-  if (isLoading) return <div className="min-h-screen grid place-items-center text-slate-600" role="status">Checking your session…</div>;
-  return isAuthenticated ? <Navigate to="/dashboard" replace /> : <>{children}</>;
+  const { isAuthenticated } = useAuth();
+  const location = useLocation();
+  const requestedPath = (location.state as { from?: string } | null)?.from;
+  const destination = requestedPath?.startsWith('/') && !requestedPath.startsWith('//') ? requestedPath : '/dashboard';
+  return isAuthenticated ? <Navigate to={destination} replace /> : <>{children}</>;
 };
 
 const PrivatePage: React.FC<{ children: React.ReactNode }> = ({ children }) => <ProtectedRoute>{children}</ProtectedRoute>;
 
 const AppRoutes = () => (
-  <Suspense fallback={<div className="min-h-screen grid place-items-center text-slate-600" role="status">Loading page…</div>}>
+  <Suspense fallback={<div className="min-h-screen grid place-items-center bg-slate-950 text-slate-400" role="status">Loading page…</div>}>
     <Routes>
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<GuestRoute><LoginPage /></GuestRoute>} />

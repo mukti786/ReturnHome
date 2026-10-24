@@ -23,7 +23,7 @@ export const LandingPage: React.FC = () => {
     <div className="min-h-screen bg-[#f8f8f5] text-slate-900">
       <header className="sticky top-0 z-40 border-b border-slate-200 bg-[#f8f8f5]/95 backdrop-blur">
         <nav className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 sm:px-8" aria-label="Main navigation">
-          <Link to="/" aria-label="ReturnHome home"><Logo variant="full" theme="light" size="md" showTagline={false} /></Link>
+          <Link to="/" aria-label="ReturnHome home"><Logo variant="full" theme="dark" size="md" showTagline={false} /></Link>
           <div className="hidden items-center gap-8 md:flex">
             <a className="text-sm text-slate-600 hover:text-slate-950" href="#workflow">Workflow</a>
             <a className="text-sm text-slate-600 hover:text-slate-950" href="#capabilities">Capabilities</a>

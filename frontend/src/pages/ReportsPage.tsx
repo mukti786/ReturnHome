@@ -80,7 +80,7 @@ export const ReportsPage: React.FC = () => {
             {/* Report Header */}
             <div className="flex items-start justify-between border-b-2 border-slate-900 pb-4">
               <div>
-                <Logo variant="full" theme="light" size="lg" showTagline={true} />
+                <Logo variant="full" theme="dark" size="lg" showTagline={true} />
                 <h2 className="text-sm font-bold uppercase tracking-wider text-slate-600 mt-2">
                   OFFICIAL MISSING PERSON INVESTIGATION REPORT
                 </h2>

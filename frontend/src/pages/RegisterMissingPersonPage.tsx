@@ -120,7 +120,7 @@ export const RegisterMissingPersonPage: React.FC = () => {
         <main className="flex-1 p-6 space-y-6 overflow-y-auto">
           {/* Header */}
           <div className="flex items-center gap-3 bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-            <LogoMark size="md" theme="light" />
+            <LogoMark size="md" theme="dark" />
             <div>
               <h1 className="text-xl font-extrabold text-slate-900">Register Missing Person Profile</h1>
               <p className="text-xs text-slate-600">

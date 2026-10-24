@@ -64,7 +64,7 @@ export const DashboardPage: React.FC = () => {
           {/* Top Command Header */}
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
             <div className="flex items-center gap-3">
-              <LogoMark size="md" theme="light" />
+              <LogoMark size="md" theme="dark" />
               <div>
                 <h1 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
                   ReturnHome Investigation Command Dashboard

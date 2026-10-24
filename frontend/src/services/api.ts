@@ -1,17 +1,34 @@
 import { User, MissingPersonCase, CandidateMatch, TimelineEvent, AuditLogItem, DashboardStats } from '../types';
 
 const API_BASE_URL = '/api';
+const API_TIMEOUT_MS = 8000;
 
 async function fetchAPI<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string>),
   };
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    ...options,
-    headers,
-    credentials: 'include',
-  });
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      ...options,
+      headers,
+      signal: options.signal ?? controller.signal,
+      credentials: 'include',
+    });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new Error('The server took too long to respond. Check that ReturnHome backend and database are running, then try again.');
+    }
+    if (error instanceof TypeError) {
+      throw new Error('Cannot reach the ReturnHome server. Check that the backend is running and try again.');
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeout);
+  }
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {

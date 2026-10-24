@@ -13,27 +13,40 @@ import videoRoutes from './routes/videoRoutes';
 import dashboardRoutes from './routes/dashboardRoutes';
 import auditRoutes from './routes/auditRoutes';
 
-dotenv.config();
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 const app = express();
 const server = http.createServer(app);
 const frontendOrigin = process.env.FRONTEND_URL || 'http://localhost:5173';
+const allowedFrontendOrigins = new Set([frontendOrigin]);
+if (process.env.NODE_ENV !== 'production') {
+  try {
+    const configuredOrigin = new URL(frontendOrigin);
+    if (configuredOrigin.hostname === 'localhost') configuredOrigin.hostname = '127.0.0.1';
+    else if (configuredOrigin.hostname === '127.0.0.1') configuredOrigin.hostname = 'localhost';
+    if (configuredOrigin.hostname === 'localhost' || configuredOrigin.hostname === '127.0.0.1') {
+      allowedFrontendOrigins.add(configuredOrigin.origin);
+    }
+  } catch {
+    console.warn('[ReturnHome CORS] FRONTEND_URL is not a valid origin.');
+  }
+}
 
 // Socket.IO setup
 const io = new SocketIOServer(server, {
   cors: {
-    origin: frontendOrigin,
+    origin: [...allowedFrontendOrigins],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE']
   }
 });
 
 // Middleware
-app.use(cors({ origin: frontendOrigin, credentials: true }));
+app.use(cors({ origin: [...allowedFrontendOrigins], credentials: true }));
 app.use((req, res, next) => {
   if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
     const origin = req.get('origin');
-    if (origin && origin !== frontendOrigin) {
+    if (origin && !allowedFrontendOrigins.has(origin)) {
       return res.status(403).json({ success: false, message: 'Request origin is not allowed.' });
     }
   }
