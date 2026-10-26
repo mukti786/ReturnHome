@@ -18,10 +18,17 @@ export const MissingPersonsPage: React.FC = () => {
   const [priorityFilter, setPriorityFilter] = useState<string>('All');
   const [genderFilter, setGenderFilter] = useState<string>('All');
   const [publicReports, setPublicReports] = useState<PublicReportItem[]>([]);
+  const [publicReportsLoading, setPublicReportsLoading] = useState(true);
   const [publicReportError, setPublicReportError] = useState('');
+  const [publicReportSearch, setPublicReportSearch] = useState('');
+  const [casesLoading, setCasesLoading] = useState(true);
+  const [casesError, setCasesError] = useState('');
 
   useEffect(() => {
+    let active = true;
     async function loadCases() {
+      setCasesLoading(true);
+      setCasesError('');
       try {
         const res = await apiService.getCases({
           search,
@@ -29,19 +36,32 @@ export const MissingPersonsPage: React.FC = () => {
           priority: priorityFilter,
           gender: genderFilter
         });
-        if (res.cases) setCases(res.cases);
+        if (active && res.cases) setCases(res.cases);
       } catch (err) {
-        console.warn('Backend server offline');
+        if (active) setCasesError(err instanceof Error ? err.message : 'Could not load case records.');
+      } finally {
+        if (active) setCasesLoading(false);
       }
     }
-    loadCases();
+    void loadCases();
+    return () => { active = false; };
   }, [search, statusFilter, priorityFilter, genderFilter]);
 
   useEffect(() => {
+    let active = true;
     apiService.getPublicReports()
-      .then((response) => setPublicReports(response.reports))
-      .catch((error: Error) => setPublicReportError(error.message));
+      .then((response) => { if (active) setPublicReports(response.reports); })
+      .catch((error: Error) => { if (active) setPublicReportError(error.message); })
+      .finally(() => { if (active) setPublicReportsLoading(false); });
+    return () => { active = false; };
   }, []);
+
+  const normalizedReportSearch = publicReportSearch.trim().toLowerCase();
+  const filteredPublicReports = publicReports.filter((report) => {
+    if (!normalizedReportSearch) return true;
+    const location = [report.lastSeen.address, report.lastSeen.city, report.lastSeen.state, report.lastSeen.country].join(' ');
+    return `${report.referenceId} ${report.missingPerson.fullName} ${location}`.toLowerCase().includes(normalizedReportSearch);
+  });
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex">
@@ -76,10 +96,11 @@ export const MissingPersonsPage: React.FC = () => {
           <section className="space-y-4 rounded-2xl border border-teal-200 bg-white p-5 shadow-sm" aria-labelledby="public-intake-heading">
             <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
               <div><p className="text-[10px] font-bold uppercase tracking-[.16em] text-teal-700">Protected intake queue</p><h2 id="public-intake-heading" className="mt-1 text-lg font-bold text-slate-900">Public reports awaiting review</h2><p className="mt-1 text-xs text-slate-500">MongoDB submissions · reporter contacts and photos are visible only in this signed-in workspace.</p></div>
-              <span className="w-fit rounded-full bg-teal-50 px-3 py-1 text-xs font-semibold text-teal-800">{publicReports.length} loaded</span>
+              <span className="w-fit rounded-full bg-teal-50 px-3 py-1 text-xs font-semibold text-teal-800">{publicReportsLoading ? 'Loading…' : `${filteredPublicReports.length} shown`}</span>
             </div>
-            {publicReportError ? <p role="alert" className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Could not load the public report queue: {publicReportError}</p> : publicReports.length === 0 ? <p className="rounded-xl border border-dashed border-slate-300 p-5 text-sm text-slate-500">No public reports are available yet. New submissions appear here after they are saved successfully.</p> :
-              <div className="grid gap-3 lg:grid-cols-2">{publicReports.map((report) => <article key={report._id} className="flex gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <label className="block max-w-xl text-xs font-semibold text-slate-600">Search reports by name, reference, or location<input type="search" value={publicReportSearch} onChange={(event) => setPublicReportSearch(event.target.value)} className="mt-1.5 min-h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm font-normal text-slate-900 outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-600/20" /></label>
+            {publicReportError ? <p role="alert" className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Could not load the public report queue: {publicReportError}</p> : publicReportsLoading ? <p role="status" className="rounded-xl border border-slate-200 p-5 text-sm text-slate-500">Loading reports…</p> : publicReports.length === 0 ? <p className="rounded-xl border border-dashed border-slate-300 p-5 text-sm text-slate-500">No public reports are available yet. New submissions appear here after they are saved successfully.</p> : filteredPublicReports.length === 0 ? <p className="rounded-xl border border-dashed border-slate-300 p-5 text-sm text-slate-500">No public reports match “{publicReportSearch}”.</p> :
+              <div className="grid gap-3 lg:grid-cols-2">{filteredPublicReports.map((report) => <article key={report._id} className="flex gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
                 {report.missingPerson.photoUrl ? <img src={report.missingPerson.photoUrl} alt={`Submitted photo of ${report.missingPerson.fullName}`} className="h-20 w-20 shrink-0 rounded-lg border border-slate-200 object-cover" /> : <div className="grid h-20 w-20 shrink-0 place-items-center rounded-lg bg-slate-200 text-xs text-slate-500">No photo</div>}
                 <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-semibold text-slate-900">{report.missingPerson.fullName}</h3><span className="rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-bold text-amber-900">{report.status}</span></div>
                   <p className="mt-1 text-xs text-slate-600">{[report.lastSeen.address, report.lastSeen.city, report.lastSeen.state, report.lastSeen.country].filter(Boolean).join(', ')}</p>
@@ -180,15 +201,14 @@ export const MissingPersonsPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {cases.map((c) => (
+                {casesLoading && <tr><td colSpan={10} className="py-8 text-center text-sm text-slate-500">Loading case records…</td></tr>}
+                {!casesLoading && casesError && <tr><td colSpan={10} className="py-8 text-center text-sm text-rose-700" role="alert">Could not load case records: {casesError}</td></tr>}
+                {!casesLoading && !casesError && cases.length === 0 && <tr><td colSpan={10} className="py-8 text-center text-sm text-slate-500">No case records match these filters.</td></tr>}
+                {!casesLoading && !casesError && cases.map((c) => (
                   <tr key={c.caseId} className="hover:bg-slate-50 transition-colors">
                     <td className="py-3.5 px-3 font-mono font-extrabold text-indigo-700">{c.caseId}</td>
                     <td className="py-3.5 px-3">
-                      <img
-                        src={c.photos[0] || 'https://images.unsplash.com/photo-1543610892-0b1f7e6d8ac1?auto=format&fit=crop&w=100&q=80'}
-                        alt={c.name}
-                        className="w-9 h-9 rounded-full object-cover border border-slate-300 shadow-sm"
-                      />
+                      {c.photos?.[0] ? <img src={c.photos[0]} alt={`Reference photo of ${c.name}`} className="w-9 h-9 rounded-full object-cover border border-slate-300 shadow-sm" /> : <span className="inline-grid h-9 w-9 place-items-center rounded-full border border-slate-200 bg-slate-100 text-[9px] text-slate-500">No photo</span>}
                     </td>
                     <td className="py-3.5 px-3 font-bold text-slate-900">{c.name}</td>
                     <td className="py-3.5 px-3 text-slate-700 font-medium">{c.age}</td>

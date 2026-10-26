@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, CheckCircle2, CircleAlert, ShieldAlert, UploadCloud } from 'lucide-react';
 import Logo from '../components/branding/Logo';
@@ -23,6 +23,7 @@ const PublicReportPage: React.FC = () => {
   const [error, setError] = useState('');
   const [result, setResult] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const submitLock = useRef(false);
 
   useEffect(() => {
     if (!photo) { setPreview(''); return; }
@@ -49,23 +50,31 @@ const PublicReportPage: React.FC = () => {
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault(); setError(''); setResult('');
+    if (submitLock.current) return;
+    if (!form.fullName.trim() || !form.lastSeenAddress.trim() || !form.reporterName.trim()) {
+      setError('Enter the missing person’s name, last-seen place, and your name.'); return;
+    }
     if (!form.reporterPhone.trim() && !form.reporterEmail.trim()) {
       setError('Provide a phone number or email address so the review team can contact you.'); return;
     }
     if ((form.preferredContact === 'Phone' && !form.reporterPhone.trim()) || (form.preferredContact === 'Email' && !form.reporterEmail.trim())) {
       setError('Add the contact detail that matches your preferred contact method.'); return;
     }
+    submitLock.current = true;
     setSubmitting(true);
     const data = new FormData();
     Object.entries(form).forEach(([key, value]) => data.append(key, value));
     if (photo) data.append('photo', photo);
     try {
       const response = await apiService.createPublicReport(data);
+      if (response.success !== true || !response.report?.referenceId) {
+        throw new Error(response.message || 'The server did not confirm that the report was saved. Your details remain in this form.');
+      }
       setResult(`${response.message} Reference: ${response.report.referenceId}.`);
       setForm(blank); setPhoto(null);
     } catch (submissionError) {
       setError(submissionError instanceof Error ? submissionError.message : 'The report could not be submitted. Your details remain in this form.');
-    } finally { setSubmitting(false); }
+    } finally { submitLock.current = false; setSubmitting(false); }
   };
 
   return <div className="min-h-screen bg-[#07111a] text-slate-100">

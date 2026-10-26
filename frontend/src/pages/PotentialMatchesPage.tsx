@@ -20,8 +20,13 @@ export const PotentialMatchesPage: React.FC = () => {
   const [selectedMatch, setSelectedMatch] = useState<CandidateMatch | null>(null);
   const [reviewNotes, setReviewNotes] = useState('');
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [reviewError, setReviewError] = useState('');
+  const [reviewing, setReviewing] = useState(false);
 
   const fetchMatches = async () => {
+    setLoading(true);
+    setLoadError('');
     try {
       const res = await apiService.getMatches({
         status: statusFilter,
@@ -36,7 +41,7 @@ export const PotentialMatchesPage: React.FC = () => {
         }
       }
     } catch (err) {
-      console.warn('Backend server offline');
+      setLoadError(err instanceof Error ? err.message : 'Candidate suggestions could not be loaded.');
     } finally {
       setLoading(false);
     }
@@ -47,14 +52,18 @@ export const PotentialMatchesPage: React.FC = () => {
   }, [statusFilter, cameraFilter, minScore, highlightId]);
 
   const handleReview = async (status: MatchStatus) => {
-    if (!selectedMatch) return;
+    if (!selectedMatch || reviewing) return;
+    setReviewing(true);
+    setReviewError('');
     try {
       await apiService.reviewMatch(selectedMatch.matchId, status, reviewNotes);
       setSelectedMatch(null);
       setReviewNotes('');
       await fetchMatches();
-    } catch (err: any) {
-      alert(err.message || 'Review submission failed');
+    } catch (err) {
+      setReviewError(err instanceof Error ? err.message : 'Review submission failed.');
+    } finally {
+      setReviewing(false);
     }
   };
 
@@ -83,6 +92,9 @@ export const PotentialMatchesPage: React.FC = () => {
           </div>
 
           <BrandDisclaimer variant="warning" />
+          <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-950">Every item below is an AI candidate suggestion. Nothing on this page confirms a person’s identity or a sighting. The current backend includes seeded sample records; treat those as illustrative and check source records before acting.</p>
+          {loadError && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900">Candidate suggestions could not be loaded: {loadError}</p>}
+          {reviewError && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900">Review was not saved: {reviewError}</p>}
 
           {/* Filter Toolbar */}
           <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-3">
@@ -137,7 +149,7 @@ export const PotentialMatchesPage: React.FC = () => {
 
           {/* Match Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {matches.map((m) => (
+            {loading ? <p role="status" className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-600">Loading candidate suggestions…</p> : !loadError && matches.length === 0 ? <p className="rounded-xl border border-dashed border-slate-300 bg-white p-5 text-sm text-slate-600">No candidate suggestions match these filters.</p> : !loadError && matches.map((m) => (
               <div
                 key={m.matchId}
                 className={`bg-white border ${m.matchId === highlightId ? 'border-cyan-500 ring-2 ring-cyan-200' : 'border-slate-200'} rounded-2xl p-5 shadow-sm space-y-4 hover:shadow-md transition-all flex flex-col justify-between`}
@@ -148,11 +160,12 @@ export const PotentialMatchesPage: React.FC = () => {
                       {m.matchId}
                     </span>
                     <span className="font-bold text-emerald-800 font-mono bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-md">
-                      {Math.round(m.similarityScore * 100)}% Similarity
+                      Unverified signal · {Math.round(m.similarityScore * 100)}%
                     </span>
                   </div>
 
                   <h3 className="font-black text-slate-900 text-base">{m.missingPersonName}</h3>
+                  <p className="text-[11px] font-semibold text-amber-800">AI candidate suggestion · identity and sighting unconfirmed</p>
 
                   {/* Side-by-Side Images */}
                   <div className="grid grid-cols-2 gap-2">
@@ -206,8 +219,9 @@ export const PotentialMatchesPage: React.FC = () => {
 
                 {/* Human Review Banner */}
                 <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-xs leading-relaxed shadow-sm">
-                  <strong>ReturnHome Potential Match — Human Review Required:</strong> Similarity score ({Math.round(selectedMatch.similarityScore * 100)}%) is an AI-generated mathematical distance signal and does not establish confirmed identity without human sign-off.
+                  <strong>AI candidate suggestion — review required:</strong> Similarity score ({Math.round(selectedMatch.similarityScore * 100)}%) is a mathematical signal only. Review status records a workflow decision and does not establish a person’s identity or confirm a sighting.
                 </div>
+                {reviewError && <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-900">Review was not saved: {reviewError}</p>}
 
                 {/* Side-by-Side Display */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -239,16 +253,18 @@ export const PotentialMatchesPage: React.FC = () => {
                 {/* Action Buttons */}
                 <div className="flex flex-wrap items-center justify-end gap-3 pt-3 border-t border-slate-100">
                   <button
+                    disabled={reviewing}
                     onClick={() => handleReview('Rejected')}
-                    className="px-4 py-2.5 rounded-xl bg-red-50 border border-red-200 hover:bg-red-100 text-red-700 font-bold text-xs flex items-center gap-1.5"
+                    className="px-4 py-2.5 rounded-xl bg-red-50 border border-red-200 hover:bg-red-100 text-red-700 font-bold text-xs flex items-center gap-1.5 disabled:opacity-50"
                   >
                     <XCircle className="w-4 h-4" /> Reject Candidate Match
                   </button>
                   <button
+                    disabled={reviewing}
                     onClick={() => handleReview('Accepted Lead')}
-                    className="px-5 py-2.5 rounded-xl bg-[#1d5147] text-white font-bold text-xs shadow-md flex items-center gap-1.5"
+                    className="px-5 py-2.5 rounded-xl bg-[#1d5147] text-white font-bold text-xs shadow-md flex items-center gap-1.5 disabled:opacity-50"
                   >
-                    <CheckCircle2 className="w-4 h-4" /> Confirm & Accept as Investigation Lead
+                    <CheckCircle2 className="w-4 h-4" /> Accept as investigation lead
                   </button>
                 </div>
               </div>

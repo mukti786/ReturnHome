@@ -31,34 +31,52 @@ export const CaseDetailsPage: React.FC = () => {
   const [caseItem, setCaseItem] = useState<MissingPersonCase | null>(null);
   const [matches, setMatches] = useState<CandidateMatch[]>([]);
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [retryToken, setRetryToken] = useState(0);
   const [activeTab, setActiveTab] = useState<'info' | 'matches' | 'timeline' | 'notes'>('info');
   const [investigatorNote, setInvestigatorNote] = useState('');
-  const [notesList, setNotesList] = useState<string[]>([
-    'Case registered following police report from New Delhi Railway Station unit.',
-    'Reference photos processed through AI face embedding pipeline.'
-  ]);
+  const [notesList, setNotesList] = useState<string[]>([]);
 
   useEffect(() => {
+    let active = true;
     async function loadCaseDetails() {
-      if (!id) return;
+      setIsLoading(true);
+      setLoadError('');
+      if (!id) {
+        setLoadError('No case identifier was provided.');
+        setIsLoading(false);
+        return;
+      }
       try {
         const res = await apiService.getCaseById(id);
-        if (res.case) setCaseItem(res.case);
-        if (res.matches) setMatches(res.matches);
-        if (res.timeline) setTimeline(res.timeline);
+        if (!res.case) throw new Error('The requested case was not found.');
+        if (active) {
+          setCaseItem(res.case);
+          setMatches(res.matches || []);
+          setTimeline(res.timeline || []);
+        }
       } catch (err) {
-        console.warn('Backend server offline');
+        if (active) setLoadError(err instanceof Error ? err.message : 'Could not load this case.');
+      } finally {
+        if (active) setIsLoading(false);
       }
     }
-    loadCaseDetails();
-  }, [id]);
+    void loadCaseDetails();
+    return () => { active = false; };
+  }, [id, retryToken]);
 
-  if (!caseItem) {
+  if (isLoading) {
+    return <div className="min-h-screen bg-slate-950 text-slate-100 grid place-items-center" role="status"><div className="text-center space-y-3"><div className="w-8 h-8 rounded-full border-2 border-cyan-500 border-t-transparent animate-spin mx-auto" /><p className="text-sm text-slate-400">Loading case record…</p></div></div>;
+  }
+
+  if (loadError || !caseItem) {
     return (
-      <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center">
-        <div className="text-center space-y-3">
-          <div className="w-8 h-8 rounded-full border-2 border-cyan-500 border-t-transparent animate-spin mx-auto" />
-          <p className="text-xs text-slate-400">Loading ReturnHome Case Record...</p>
+      <div className="min-h-screen bg-slate-950 text-slate-100 grid place-items-center px-5">
+        <div className="max-w-lg space-y-4 text-center">
+          <p className="text-lg font-semibold">Case record unavailable</p>
+          <p role="alert" className="text-sm leading-6 text-slate-400">{loadError || 'The requested case was not found.'}</p>
+          <div className="flex justify-center gap-3"><button type="button" onClick={() => navigate('/cases')} className="rounded-lg border border-slate-700 px-4 py-2.5 text-sm font-medium hover:bg-slate-900">Back to Case Directory</button><button type="button" onClick={() => setRetryToken((value) => value + 1)} className="rounded-lg bg-teal-300 px-4 py-2.5 text-sm font-semibold text-slate-950">Retry</button></div>
         </div>
       </div>
     );
@@ -66,10 +84,11 @@ export const CaseDetailsPage: React.FC = () => {
 
   const handleAddNote = () => {
     if (investigatorNote.trim()) {
-      setNotesList([...notesList, `${new Date().toLocaleTimeString()} - ${investigatorNote.trim()}`]);
+      setNotesList((current) => [...current, `${new Date().toLocaleTimeString()} - ${investigatorNote.trim()}`]);
       setInvestigatorNote('');
     }
   };
+  const photos = Array.isArray(caseItem.photos) ? caseItem.photos : [];
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex">
@@ -114,11 +133,7 @@ export const CaseDetailsPage: React.FC = () => {
           <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl relative overflow-hidden">
             <div className="flex flex-col md:flex-row gap-6 items-start">
               {/* Main Photo */}
-              <img
-                src={caseItem.photos[0] || 'https://images.unsplash.com/photo-1543610892-0b1f7e6d8ac1?auto=format&fit=crop&w=600&q=80'}
-                alt={caseItem.name}
-                className="w-36 h-44 object-cover rounded-xl border-2 border-slate-700 shadow-md shrink-0"
-              />
+              {photos[0] ? <img src={photos[0]} alt={`Reference photo of ${caseItem.name}`} className="w-36 h-44 object-cover rounded-xl border-2 border-slate-700 shadow-md shrink-0" /> : <div className="grid h-44 w-36 shrink-0 place-items-center rounded-xl border-2 border-slate-700 bg-slate-950 text-center text-xs text-slate-500">No reference photo<br />in this record</div>}
 
               {/* Information Overview */}
               <div className="flex-1 space-y-3">
@@ -164,10 +179,10 @@ export const CaseDetailsPage: React.FC = () => {
                 </div>
 
                 {/* Additional Reference Photos Thumbnails */}
-                {caseItem.photos.length > 1 && (
+                {photos.length > 1 && (
                   <div className="flex items-center gap-2 pt-2">
                     <span className="text-[10px] text-slate-500 font-semibold">Reference Angles:</span>
-                    {caseItem.photos.slice(1).map((p, idx) => (
+                    {photos.slice(1).map((p, idx) => (
                       <img key={idx} src={p} alt="Angle" className="w-10 h-10 object-cover rounded-lg border border-slate-700" />
                     ))}
                   </div>
@@ -177,6 +192,8 @@ export const CaseDetailsPage: React.FC = () => {
           </div>
 
           <BrandDisclaimer variant="compact" />
+          {matches.length > 0 && <p className="rounded-xl border border-amber-900/50 bg-amber-950/30 px-4 py-3 text-xs leading-5 text-amber-200">Candidate records in this prototype are seeded demonstration data. Similarity and workflow statuses are not evidence of a confirmed identity or sighting.</p>}
+          {caseItem.latitude !== undefined && caseItem.longitude !== undefined && <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-900 px-4 py-3 text-xs"><span className="text-slate-300"><MapPin className="mr-1 inline h-4 w-4 text-teal-300" />Coordinates stored on this case: <span className="font-mono">{caseItem.latitude}, {caseItem.longitude}</span></span><button type="button" onClick={() => navigate(`/map?caseId=${encodeURIComponent(caseItem.caseId)}`)} className="font-semibold text-teal-300 hover:text-teal-200">View on case map</button></div>}
 
           {/* Navigation Tabs */}
           <div className="flex items-center gap-2 border-b border-slate-800 text-xs font-semibold">
@@ -255,9 +272,9 @@ export const CaseDetailsPage: React.FC = () => {
               {matches.map((m) => (
                 <div key={m.matchId} className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="font-bold text-white text-sm">Match Candidate #{m.matchId}</span>
+                    <span className="font-bold text-white text-sm">AI candidate suggestion · identity unconfirmed · {m.matchId}</span>
                     <span className="font-bold text-emerald-400 font-mono text-xs bg-emerald-950/60 border border-emerald-800/40 px-2.5 py-0.5 rounded">
-                      {Math.round(m.similarityScore * 100)}% Similarity Score
+                      {Math.round(m.similarityScore * 100)}% similarity signal · not identity proof
                     </span>
                   </div>
 
@@ -278,11 +295,12 @@ export const CaseDetailsPage: React.FC = () => {
                       onClick={() => navigate(`/matches?id=${m.matchId}`)}
                       className="px-4 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-semibold text-xs"
                     >
-                      Inspect Side-by-Side & Verify
+                      Review candidate suggestion
                     </button>
                   </div>
                 </div>
               ))}
+              {matches.length === 0 && <p className="rounded-xl border border-slate-800 bg-slate-900 p-5 text-sm text-slate-400">No candidate suggestions are recorded for this case.</p>}
             </div>
           )}
 
@@ -301,6 +319,7 @@ export const CaseDetailsPage: React.FC = () => {
                     <span className="text-[10px] text-cyan-400 font-mono block">Logged by {evt.user}</span>
                   </div>
                 ))}
+                {timeline.length === 0 && <p className="text-sm text-slate-400">No timeline events are recorded for this case.</p>}
               </div>
             </div>
           )}
@@ -308,6 +327,7 @@ export const CaseDetailsPage: React.FC = () => {
           {/* Tab 4: Notes */}
           {activeTab === 'notes' && (
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg space-y-4">
+              <p className="text-xs text-slate-400">Notes added here are temporary to this page session and are not saved to the case record.</p>
               <div className="flex items-center gap-2">
                 <input
                   type="text"
@@ -330,6 +350,7 @@ export const CaseDetailsPage: React.FC = () => {
                     {n}
                   </div>
                 ))}
+                {notesList.length === 0 && <p className="text-xs text-slate-500">No temporary notes in this session.</p>}
               </div>
             </div>
           )}
