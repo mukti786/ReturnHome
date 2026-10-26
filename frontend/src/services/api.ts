@@ -22,21 +22,35 @@ async function fetchAPI<T>(endpoint: string, options: RequestInit = {}): Promise
     });
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') {
-      throw new Error('The server took too long to respond. Check that ReturnHome backend and database are running, then try again.');
+      throw new Error('The ReturnHome API took too long to respond. Check the backend and database, or start the local sample workspace with “npm run dev:demo”.');
     }
     if (error instanceof TypeError) {
-      throw new Error('Cannot reach the ReturnHome server. Check that the backend is running and try again.');
+      throw new Error('Cannot reach the ReturnHome API. Start the backend with “npm --prefix backend run dev”, or use “npm run dev:demo” to start the local demonstration.');
     }
     throw error;
   } finally {
     window.clearTimeout(timeout);
   }
 
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(data.message || 'API request failed.');
+  const contentType = response.headers.get('content-type') || '';
+  const responseText = await response.text();
+  let data: any = null;
+  if (contentType.includes('application/json')) {
+    try { data = JSON.parse(responseText); } catch { /* Report a useful protocol error below. */ }
   }
-  return data;
+  if (!response.ok) {
+    if (typeof data?.message === 'string' && data.message.trim()) throw new Error(data.message);
+    const proxyFailure = response.status === 502 || response.status === 504 || /proxy error|econnrefused|connect etimedout/i.test(responseText);
+    if (proxyFailure) {
+      throw new Error(`The ReturnHome API could not be reached for ${endpoint} (HTTP ${response.status}). Start the backend with “npm --prefix backend run dev”, or use “npm run dev:demo” to start the local demonstration.`);
+    }
+    if (!data && response.status >= 500) throw new Error(`The ReturnHome API returned a non-JSON server error (HTTP ${response.status}) for ${endpoint}. Check the backend terminal output and confirm it is running with the expected environment.`);
+    throw new Error(`The ReturnHome API returned HTTP ${response.status} for ${endpoint} without a JSON error message. Check that the backend route is available.`);
+  }
+  if (!data || typeof data !== 'object') {
+    throw new Error(`The ReturnHome API returned an unreadable response for ${endpoint}. Check that the backend is running and returning JSON.`);
+  }
+  return data as T;
 }
 
 export const apiService = {

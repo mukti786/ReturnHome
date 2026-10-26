@@ -122,26 +122,15 @@ ReturnHome/
    npm run install:all
    ```
 
-2. **Run Backend Service**:
+2. **Run the local demonstration** from the repository root:
    ```bash
-   cd backend
-   npm run dev
+   npm run dev:demo
    ```
-   *(Runs on http://localhost:5000)*
+   This starts the frontend at http://127.0.0.1:5173 and the backend at http://localhost:5000 together. It explicitly enables the existing local-only demo session so you can open the investigator workspace without entering credentials. The session is visibly marked **NOT VERIFIED**, is accepted only by the backend's development script, and uses illustrative sample case data. Stop both services with Ctrl+C.
 
-3. **Run AI Microservice**:
-   ```bash
-   cd ai-service
-   python main.py
-   ```
-   *(Runs on http://127.0.0.1:8000)*
+   Root `npm start` and `npm run dev` also launch this local demonstration. To run only one service, use `npm run dev:frontend` or `npm run dev:backend`.
 
-4. **Run Frontend Workspace**:
-   ```bash
-   cd frontend
-   npm run dev
-   ```
-   *(Runs on http://localhost:5173)*
+   MongoDB is not required for local demo casework. It is required for account sign-in/registration, the public report intake and photo storage, and the protected public-report review queue. Configure `MONGO_URI` in the root `.env` for those features. The AI service is separate and the video screen explains that footage analysis is not connected to the investigator interface.
 
 ---
 
@@ -156,10 +145,9 @@ Account registration stores a bcrypt password hash in MongoDB and creates a pend
 
 ### Local demo workspace without MongoDB login
 
-1. In the repository-root `.env`, set `DEV_AUTH_BYPASS=true`. In `frontend/.env.local`, set `VITE_DEV_AUTH_BYPASS=true` (create that file if needed).
-2. Start the backend using `npm run dev` from `backend/` and the frontend using `npm run dev` from `frontend/`. The development script sets `NODE_ENV=development` when it is not otherwise specified. Opening `/` or `/dashboard` automatically obtains a server-issued local demo cookie; the login page’s demo button remains available as a manual entry point.
-3. The bypass is accepted only when `NODE_ENV=development`, the backend is started by its `dev` npm lifecycle script, and the server flag is exactly `true`. `npm start` forces production mode and rejects the enabled flag. The demo token expires after eight hours and its signing secret changes on backend restart.
-4. Disable local demo access by setting both flags back to `false` (or removing them) and restarting both servers. The frontend toggle only reveals the button; it cannot authorize API access by itself.
+1. Run `npm run dev:demo` from the repository root; it sets both demo flags for those child processes only. No `.env` edits or credentials are required for sample casework.
+2. The backend accepts the demo cookie only in its development `npm run dev` process. Its token expires after eight hours and the signing secret changes on backend restart. The demo command does not change normal login or production authorization.
+3. For verified accounts, use the standard MongoDB/JWT setup above and start the backend and frontend separately without the demo flags. Never enable `DEV_AUTH_BYPASS` in a deployed environment.
 
 ### Public reports and uploads
 
