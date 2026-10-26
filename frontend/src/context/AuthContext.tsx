@@ -9,6 +9,7 @@ interface AuthContextType {
   isLoading: boolean;
   activeRole: UserRole;
   isDemoMode: boolean;
+  authStartupError: string;
   login: (email: string, pass: string) => Promise<boolean>;
   loginDemo: () => Promise<void>;
   register: (user: { name: string; email: string; organization: string; password: string }) => Promise<string>;
@@ -23,13 +24,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isDemoMode, setIsDemoMode] = useState(false);
+  const [authStartupError, setAuthStartupError] = useState('');
+  const canStartLocalDemo = import.meta.env.DEV && import.meta.env.VITE_DEV_AUTH_BYPASS === 'true';
 
   useEffect(() => {
-    apiService.getMe()
-      .then((result) => { setUser(result.user); setIsDemoMode(!!result.user.isDemo); })
-      .catch(() => setUser(null))
-      .finally(() => setIsLoading(false));
-  }, []);
+    const restoreSession = async () => {
+      try {
+        const result = await apiService.getMe();
+        setUser(result.user);
+        setIsDemoMode(!!result.user.isDemo);
+        setAuthStartupError('');
+      } catch (sessionError) {
+        setUser(null);
+        if (canStartLocalDemo) {
+          try {
+            const result = await apiService.devLogin();
+            setUser(result.user);
+            setIsDemoMode(true);
+            setAuthStartupError('');
+          } catch (demoError) {
+            setAuthStartupError(demoError instanceof Error ? demoError.message : 'Local demo access could not start.');
+          }
+        } else if (!(sessionError instanceof Error && sessionError.message === 'Sign in to continue.')) {
+          setAuthStartupError(sessionError instanceof Error ? sessionError.message : 'Could not check the current session.');
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    void restoreSession();
+  }, [canStartLocalDemo]);
 
   const login = async (email: string, pass: string): Promise<boolean> => {
     setIsLoading(true);
@@ -37,6 +61,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const result = await apiService.login(email, pass);
       setUser(result.user);
       setIsDemoMode(!!result.user.isDemo);
+      setAuthStartupError('');
       return true;
     } finally {
       setIsLoading(false);
@@ -77,6 +102,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       isLoading,
       activeRole: user?.role || 'Public',
       isDemoMode,
+      authStartupError,
       login,
       loginDemo,
       register,

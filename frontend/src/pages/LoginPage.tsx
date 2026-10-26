@@ -8,7 +8,7 @@ import { apiService } from '../services/api';
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, loginDemo } = useAuth();
+  const { login, loginDemo, authStartupError } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -70,6 +70,7 @@ export const LoginPage: React.FC = () => {
       <div className="text-center"><Link to="/"><Logo variant="full" theme="dark" size="lg" showTagline={false} /></Link><div className="mx-auto mt-7 grid h-11 w-11 place-items-center rounded-xl bg-[#e5ede6] text-[#356a5a]"><LockKeyhole size={20} /></div><h1 className="mt-4 text-2xl font-semibold tracking-tight text-slate-900">Investigator sign in</h1><p className="mt-2 text-sm leading-6 text-slate-600">Use an active account approved by your organization.</p></div>
       <div className="mt-7 rounded-2xl border border-slate-200 bg-white p-6 shadow-[0_16px_48px_-32px_rgba(15,23,42,.32)] sm:p-8">
         {error && <div role="alert" className="mb-5 rounded-lg border border-red-200 bg-red-50 px-3.5 py-3 text-sm text-red-800">{error}</div>}
+        {!error && authStartupError && <div role="alert" className="mb-5 rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-3 text-sm leading-6 text-amber-950">Could not restore the current session: {authStartupError}</div>}
         {notice && <div role="status" className="mb-5 rounded-lg border border-[#d8e3d9] bg-[#f4f7f2] px-3.5 py-3 text-sm text-slate-700">{notice}</div>}
         <form onSubmit={handleSubmit} className="space-y-5">
           <div><label htmlFor="email" className="mb-1.5 block text-sm font-medium text-slate-800">Email address</label><div className="relative"><Mail size={17} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" /><input id="email" name="email" autoComplete="username" type="email" required maxLength={254} value={email} onChange={(event) => setEmail(event.target.value)} className="min-h-11 w-full rounded-lg border border-slate-300 bg-white pl-10 pr-3 text-sm outline-none focus:border-[#356a5a] focus:ring-2 focus:ring-[#356a5a]/20" placeholder="name@organization.org" /></div></div>

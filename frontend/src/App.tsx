@@ -1,5 +1,5 @@
 import React, { lazy, Suspense } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
@@ -23,9 +23,12 @@ const PublicReportPage = lazy(() => import('./pages/PublicReportPage'));
 const InfoPage = lazy(() => import('./pages/InfoPage'));
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, authStartupError } = useAuth();
   const location = useLocation();
   if (isLoading) return <div className="min-h-screen grid place-items-center bg-slate-950 text-slate-400" role="status">Checking your session…</div>;
+  if (!isAuthenticated && import.meta.env.DEV && import.meta.env.VITE_DEV_AUTH_BYPASS === 'true') {
+    return <main className="grid min-h-screen place-items-center bg-slate-950 px-5 text-slate-100"><section className="max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-6"><h1 className="text-xl font-semibold">Local workspace unavailable</h1><p role="alert" className="mt-3 text-sm leading-6 text-slate-300">{authStartupError || 'The backend did not issue a local demo session.'}</p><p className="mt-3 text-xs leading-5 text-slate-400">Check that the backend is running with `DEV_AUTH_BYPASS=true` and `npm run dev`, then refresh.</p><Link to="/" className="mt-5 inline-flex rounded-lg bg-teal-300 px-4 py-2.5 text-sm font-semibold text-slate-950">Return to home</Link></section></main>;
+  }
   if (!isAuthenticated) return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   return <>{children}</>;
 };

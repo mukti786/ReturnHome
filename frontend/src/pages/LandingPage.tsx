@@ -30,7 +30,7 @@ export const LandingPage: React.FC = () => {
             <Link className="text-sm text-slate-600 hover:text-slate-950" to="/public-report">Public reporting</Link>
           </div>
           <div className="hidden items-center gap-3 md:flex">
-            <Link to="/login" className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-100">Open Investigator Workspace</Link>
+            <Link to="/dashboard" className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-100">Open Investigator Workspace</Link>
             <Link to="/public-report" className="inline-flex items-center gap-2 rounded-lg bg-[#1d5147] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#163f37]">Report a Missing Person <ArrowRight size={16} /></Link>
           </div>
           <button type="button" className="rounded-lg p-2 text-slate-700 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 md:hidden" aria-label={menuOpen ? 'Close navigation menu' : 'Open navigation menu'} aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? <X size={22} /> : <Menu size={22} />}</button>
@@ -39,7 +39,7 @@ export const LandingPage: React.FC = () => {
           <a onClick={() => setMenuOpen(false)} className="py-2 text-sm" href="#about">About</a>
           <a onClick={() => setMenuOpen(false)} className="py-2 text-sm" href="#workflow">How it works</a>
           <Link to="/public-report" className="rounded-lg border border-slate-300 px-4 py-3 text-center text-sm font-semibold">Report a Missing Person</Link>
-          <Link to="/login" className="py-2 text-center text-sm font-semibold text-slate-500">Investigator Sign In</Link>
+          <Link to="/dashboard" className="py-2 text-center text-sm font-semibold text-slate-500">Open Investigator Workspace</Link>
         </div></div>}
       </header>
 
@@ -72,7 +72,7 @@ export const LandingPage: React.FC = () => {
                 <div className="flex items-center gap-3"><div className="grid h-11 w-11 place-items-center rounded-xl bg-[#edf2ed] text-[#356a5a]"><ClipboardList size={21} /></div><p className="text-xs font-semibold uppercase tracking-[.15em] text-slate-500">Investigator workspace</p></div>
                 <h3 className="mt-6 text-2xl font-semibold tracking-tight text-slate-900">For Investigators</h3>
                 <p className="mt-3 max-w-xl text-sm leading-6 text-slate-600">Manage missing-person cases, review potential matches, and coordinate investigation workflows in one workspace.</p>
-                <div className="mt-auto pt-7"><Link to="/login" className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-[#1d5147] px-4 py-3 text-sm font-semibold text-white hover:bg-[#163f37]">Open Investigator Workspace <ArrowRight size={16} /></Link><p className="mt-3 text-xs text-slate-500">Need access? <Link to="/register" className="font-semibold text-[#245c4c] hover:underline">Request investigator access</Link></p></div>
+                <div className="mt-auto pt-7"><Link to="/dashboard" className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-[#1d5147] px-4 py-3 text-sm font-semibold text-white hover:bg-[#163f37]">Open Investigator Workspace <ArrowRight size={16} /></Link><p className="mt-3 text-xs text-slate-500">Need a verified account? <Link to="/login" className="font-semibold text-[#245c4c] hover:underline">Sign in</Link> · <Link to="/register" className="font-semibold text-[#245c4c] hover:underline">Request access</Link></p></div>
               </article>
 
               <article className="flex flex-col rounded-2xl border border-slate-200 bg-white p-6 sm:p-8">

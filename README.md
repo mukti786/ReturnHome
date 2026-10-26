@@ -157,7 +157,7 @@ Account registration stores a bcrypt password hash in MongoDB and creates a pend
 ### Local demo workspace without MongoDB login
 
 1. In the repository-root `.env`, set `DEV_AUTH_BYPASS=true`. In `frontend/.env.local`, set `VITE_DEV_AUTH_BYPASS=true` (create that file if needed).
-2. Start the backend using `npm run dev` from `backend/` and the frontend using `npm run dev` from `frontend/`. The development script sets `NODE_ENV=development` when it is not otherwise specified. Use the **Enter local demo workspace** button on `/login`.
+2. Start the backend using `npm run dev` from `backend/` and the frontend using `npm run dev` from `frontend/`. The development script sets `NODE_ENV=development` when it is not otherwise specified. Opening `/` or `/dashboard` automatically obtains a server-issued local demo cookie; the login page’s demo button remains available as a manual entry point.
 3. The bypass is accepted only when `NODE_ENV=development`, the backend is started by its `dev` npm lifecycle script, and the server flag is exactly `true`. `npm start` forces production mode and rejects the enabled flag. The demo token expires after eight hours and its signing secret changes on backend restart.
 4. Disable local demo access by setting both flags back to `false` (or removing them) and restarting both servers. The frontend toggle only reveals the button; it cannot authorize API access by itself.
 
