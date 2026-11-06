@@ -61,8 +61,8 @@ app.use((req, res, next) => {
   }
   return next();
 });
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use(express.json({ limit: '64mb' }));
+app.use(express.urlencoded({ extended: true, limit: '64mb' }));
 
 // Serve static uploads
 app.use('/uploads', protect, express.static(path.join(__dirname, '../uploads')));
@@ -98,7 +98,7 @@ app.get('/api', (req, res) => {
     status: isMongoConnected ? 'ONLINE' : 'DEGRADED',
     database: isMongoConnected ? 'connected' : 'unavailable',
     version: '1.0.0',
-    disclaimer: 'AI-generated matches are potential leads only and must be independently verified by authorized personnel.'
+    disclaimer: 'This system does not provide validated face recognition. Generic image-feature similarities are experimental suggestions, not confirmed identities.'
   });
 });
 
@@ -117,6 +117,13 @@ app.use((req, res) => {
     success: false,
     message: 'ReturnHome API endpoint not found.'
   });
+});
+
+app.use((error: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  if (error?.type === 'entity.too.large') return res.status(413).json({ success: false, message: 'The request exceeds the supported upload size.' });
+  if (error instanceof SyntaxError && 'body' in error) return res.status(400).json({ success: false, message: 'Request body must contain valid JSON.' });
+  console.error('[ReturnHome API] Unhandled request error:', error?.message || 'Unknown error');
+  return res.status(500).json({ success: false, message: 'The server could not complete this request.' });
 });
 
 const PORT = process.env.PORT || 5000;

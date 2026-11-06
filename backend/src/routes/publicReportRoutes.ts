@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import multer from 'multer';
-import { protect } from '../middleware/authMiddleware';
+import { protect, restrictTo } from '../middleware/authMiddleware';
 import { createPublicReport, listPublicReports } from '../controllers/publicReportController';
 import { uploadPublicReportPhoto } from '../middleware/uploadMiddleware';
 import { isMongoConnected } from '../config/db';
@@ -17,5 +17,5 @@ router.post('/', (req, res, next) => {
     return res.status(400).json({ success: false, message: error.message || 'Choose a JPEG, PNG, or WebP photo.' });
   });
 }, createPublicReport);
-router.get('/', protect, listPublicReports);
+router.get('/', protect, restrictTo('Admin', 'Investigator'), listPublicReports);
 export default router;

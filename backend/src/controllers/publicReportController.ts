@@ -29,6 +29,7 @@ export const createPublicReport = async (req: Request, res: Response) => {
     const phone = text(body.reporterPhone, 40);
     const email = text(body.reporterEmail, 254).toLowerCase();
     const preferredContact = text(body.preferredContact, 20);
+    const consentAcknowledged = body.consentAcknowledged === 'true' || body.consentAcknowledged === true;
     const latitude = optionalNumber(body.latitude);
     const longitude = optionalNumber(body.longitude);
     const age = optionalNumber(body.age);
@@ -36,6 +37,10 @@ export const createPublicReport = async (req: Request, res: Response) => {
     if (!fullName || !lastSeenAddress || !reporterName || (!phone && !email)) {
       await removeUpload(uploadedPath);
       return res.status(400).json({ success: false, message: 'Enter the missing person’s name, last-seen place, reporter’s name, and at least one contact method.' });
+    }
+    if (!consentAcknowledged) {
+      await removeUpload(uploadedPath);
+      return res.status(400).json({ success: false, message: 'Confirm that you are authorized to share these details and understand how this deployment uses them.' });
     }
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       await removeUpload(uploadedPath);
@@ -90,7 +95,7 @@ export const createPublicReport = async (req: Request, res: Response) => {
       },
       reporter: {
         name: reporterName, phone, email, relationship: text(body.relationship, 120),
-        preferredContact
+        preferredContact, consentAcknowledged: true, consentedAt: new Date()
       }
     });
     return res.status(201).json({

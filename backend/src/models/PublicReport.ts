@@ -30,6 +30,8 @@ export interface IPublicReport extends Document {
     email?: string;
     relationship?: string;
     preferredContact?: string;
+    consentAcknowledged: boolean;
+    consentedAt: Date;
   };
   status: 'Pending Review' | 'Reviewed';
   createdAt: Date;
@@ -65,7 +67,9 @@ const PublicReportSchema = new Schema<IPublicReport>({
     phone: { type: String, maxlength: 40 },
     email: { type: String, maxlength: 254 },
     relationship: { type: String, maxlength: 120 },
-    preferredContact: { type: String, enum: ['', 'Phone', 'Email'], maxlength: 20 }
+    preferredContact: { type: String, enum: ['', 'Phone', 'Email'], maxlength: 20 },
+    consentAcknowledged: { type: Boolean, required: true },
+    consentedAt: { type: Date, required: true }
   },
   status: { type: String, enum: ['Pending Review', 'Reviewed'], default: 'Pending Review', index: true }
 }, { timestamps: true, minimize: false });

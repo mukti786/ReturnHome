@@ -55,7 +55,7 @@ export class AIService {
   }
 
   /**
-   * Extracts real 512-dim PyTorch embedding from an image
+   * Extracts a generic 512-dimensional image feature vector; this is not validated face recognition.
    */
   static async extractEmbedding(imagePath: string): Promise<AIEmbeddingResult> {
     const isOnline = await this.isServiceOnline();
@@ -74,10 +74,13 @@ export class AIService {
 
         if (response.ok) {
           const data: any = await response.json();
+          if (!Array.isArray(data.embedding) || data.embedding.length !== 512 || !data.quality || !Number.isFinite(data.confidence)) {
+            throw new Error('AI service returned an invalid embedding response.');
+          }
           return {
             embedding: data.embedding,
             quality: data.quality,
-            confidence: data.confidence || 0.92,
+            confidence: data.confidence,
           };
         }
       } catch (err: any) {
@@ -98,7 +101,7 @@ export class AIService {
         return {
           embedding: parsed.embedding,
           quality: parsed.quality,
-          confidence: parsed.confidence || 0.90,
+          confidence: parsed.confidence,
           box: parsed.box
         };
       }
@@ -141,9 +144,12 @@ export class AIService {
 
         if (res.ok) {
           const data: any = await res.json();
+          if (!Array.isArray(data.candidate_matches) || !Number.isInteger(data.faces_detected)) {
+            throw new Error('AI service returned an invalid frame analysis response.');
+          }
           return {
-            facesDetected: data.faces_detected || 0,
-            candidateMatches: data.candidate_matches || [],
+            facesDetected: data.faces_detected,
+            candidateMatches: data.candidate_matches,
           };
         }
       } catch (err: any) {
@@ -180,7 +186,7 @@ export class AIService {
       console.warn(`[ReturnHome AI] Process frame CLI error: ${cliErr.message}`);
     }
 
-    return { facesDetected: 0, candidateMatches: [] };
+    throw new Error('AI frame analysis is unavailable; no frame results were generated.');
   }
 
   /**
@@ -220,11 +226,14 @@ export class AIService {
 
         if (res.ok) {
           const data: any = await res.json();
+          if (!Number.isInteger(data.frames_analyzed) || !Number.isInteger(data.faces_detected) || !Number.isInteger(data.tracks_created) || !Array.isArray(data.potential_matches)) {
+            throw new Error('AI service returned an invalid video analysis response.');
+          }
           return {
-            framesAnalyzed: data.frames_analyzed || 3600,
-            facesDetected: data.faces_detected || 142,
-            tracksCreated: data.tracks_created || 8,
-            potentialMatches: data.potential_matches || [],
+            framesAnalyzed: data.frames_analyzed,
+            facesDetected: data.faces_detected,
+            tracksCreated: data.tracks_created,
+            potentialMatches: data.potential_matches,
           };
         }
       } catch (err: any) {

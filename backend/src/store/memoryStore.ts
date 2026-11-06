@@ -444,15 +444,17 @@ function loadDatabase(): SeedData {
 export const memoryStore: SeedData = loadDatabase();
 
 export const saveToDisk = (): void => {
+  const tempPath = `${DB_PATH}.tmp`;
   try {
     const dataDir = path.dirname(DB_PATH);
     if (!fs.existsSync(dataDir)) {
       fs.mkdirSync(dataDir, { recursive: true });
     }
-    const tempPath = `${DB_PATH}.tmp`;
     fs.writeFileSync(tempPath, JSON.stringify(memoryStore, null, 2), 'utf-8');
     fs.renameSync(tempPath, DB_PATH);
   } catch (err: any) {
     console.error(`[ReturnHome DB] Persistence error saving to disk:`, err.message);
+    try { if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath); } catch { /* Preserve the original persistence error. */ }
+    throw err;
   }
 };

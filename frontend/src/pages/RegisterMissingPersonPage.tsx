@@ -39,22 +39,34 @@ export const RegisterMissingPersonPage: React.FC = () => {
   const [photoUrlInput, setPhotoUrlInput] = useState('');
   const [activeTab, setActiveTab] = useState<'upload' | 'url'>('upload');
   const [loading, setLoading] = useState(false);
+  const [formError, setFormError] = useState('');
+  const submitLock = useRef(false);
 
   // Handle local file uploads (FileReader -> Base64 data URL)
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
+    if (photos.length + files.length > 8) {
+      setFormError('A case can include up to 8 reference photos.');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
 
     Array.from(files).forEach((file) => {
-      if (file.type.startsWith('image/')) {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          if (event.target?.result) {
-            setPhotos((prev) => [...prev, event.target!.result as string]);
-          }
-        };
-        reader.readAsDataURL(file);
+      if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+        setFormError(`${file.name}: choose a JPEG, PNG, or WebP image.`);
+        return;
       }
+      if (file.size > 15 * 1024 * 1024) {
+        setFormError(`${file.name}: each reference photo must be 15 MB or smaller.`);
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        if (typeof event.target?.result === 'string') setPhotos((prev) => [...prev, event.target!.result as string]);
+      };
+      reader.onerror = () => setFormError(`Could not read ${file.name}. Choose the file again.`);
+      reader.readAsDataURL(file);
     });
 
     // Reset input
@@ -88,10 +100,17 @@ export const RegisterMissingPersonPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (photos.length === 0) {
-      alert('Please upload or provide at least one reference photo.');
+    if (submitLock.current || loading) return;
+    setFormError('');
+    if (!formData.name.trim() || !formData.age || !formData.lastSeenDate || !formData.lastSeenLocation.trim()) {
+      setFormError('Enter the missing person’s name, age, last-seen date, and location.');
       return;
     }
+    if (photos.length === 0) {
+      setFormError('Add at least one reference photo before registering this case.');
+      return;
+    }
+    submitLock.current = true;
     setLoading(true);
 
     try {
@@ -105,7 +124,9 @@ export const RegisterMissingPersonPage: React.FC = () => {
       setLoading(false);
       navigate(`/cases/${res.case.caseId}`);
     } catch (err: any) {
-      alert(err.message || 'Failed to register missing person');
+      setFormError(err.message || 'Failed to register missing person. Your case was not confirmed as saved.');
+    } finally {
+      submitLock.current = false;
       setLoading(false);
     }
   };
@@ -144,6 +165,7 @@ export const RegisterMissingPersonPage: React.FC = () => {
                   <input
                     type="text"
                     required
+                    maxLength={160}
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     placeholder="e.g. Aarav Sharma"
@@ -156,6 +178,8 @@ export const RegisterMissingPersonPage: React.FC = () => {
                   <input
                     type="number"
                     required
+                    min={0}
+                    max={130}
                     value={formData.age}
                     onChange={(e) => setFormData({ ...formData, age: e.target.value })}
                     placeholder="12"
@@ -352,7 +376,7 @@ export const RegisterMissingPersonPage: React.FC = () => {
                   <input
                     type="file"
                     ref={fileInputRef}
-                    accept="image/*"
+                    accept="image/jpeg,image/png,image/webp"
                     multiple
                     onChange={handleFileUpload}
                     className="hidden"
@@ -370,7 +394,7 @@ export const RegisterMissingPersonPage: React.FC = () => {
                       Click to choose reference photo files from your computer
                     </span>
                     <span className="text-[11px] text-slate-500 mt-0.5">
-                      Supports JPG, PNG, WEBP (Multiple photos allowed)
+                      JPEG, PNG, WebP · up to 15 MB each
                     </span>
                   </label>
 
@@ -443,6 +467,7 @@ export const RegisterMissingPersonPage: React.FC = () => {
             </div>
 
             {/* Submit Buttons */}
+            {formError && <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">{formError}</p>}
             <div className="flex items-center justify-end gap-4 pt-2">
               <button
                 type="button"

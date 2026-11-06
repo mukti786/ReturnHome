@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import path from 'path';
 import fs from 'fs';
+import { randomUUID } from 'crypto';
 import { memoryStore, saveToDisk, FaceRepresentation } from '../store/memoryStore';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { AIService } from '../services/aiService';
@@ -9,23 +10,20 @@ const CASES_UPLOAD_DIR = path.resolve(__dirname, '../../uploads/cases');
 
 // Helper to save base64 data URL to disk
 function saveBase64Image(dataUrl: string, prefix: string): string {
-  try {
-    const matches = dataUrl.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
-    if (!matches || matches.length !== 3) return dataUrl; // return original if not base64
-
-    const ext = matches[1].includes('png') ? '.png' : '.jpg';
-    const buffer = Buffer.from(matches[2], 'base64');
-    const filename = `${prefix}-${Date.now()}-${Math.round(Math.random() * 1e4)}${ext}`;
-    const filePath = path.join(CASES_UPLOAD_DIR, filename);
-
-    if (!fs.existsSync(CASES_UPLOAD_DIR)) {
-      fs.mkdirSync(CASES_UPLOAD_DIR, { recursive: true });
-    }
-    fs.writeFileSync(filePath, buffer);
-    return `/uploads/cases/${filename}`;
-  } catch (err) {
-    return dataUrl;
-  }
+  const matches = dataUrl.match(/^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/]+=*)$/i);
+  if (!matches) throw new Error('Reference images must be valid JPEG, PNG, or WebP data.');
+  const mime = matches[1].toLowerCase();
+  const buffer = Buffer.from(matches[2], 'base64');
+  if (!buffer.length || buffer.length > 15 * 1024 * 1024) throw new Error('Each reference image must be 15 MB or smaller.');
+  const valid = mime === 'jpeg' ? buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff
+    : mime === 'png' ? buffer.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
+      : buffer.toString('ascii', 0, 4) === 'RIFF' && buffer.toString('ascii', 8, 12) === 'WEBP';
+  if (!valid) throw new Error('Reference image data does not match its declared file type.');
+  const extension = mime === 'jpeg' ? '.jpg' : `.${mime}`;
+  const filename = `${prefix}-${Date.now()}-${randomUUID()}${extension}`;
+  fs.mkdirSync(CASES_UPLOAD_DIR, { recursive: true });
+  fs.writeFileSync(path.join(CASES_UPLOAD_DIR, filename), buffer, { flag: 'wx' });
+  return `/uploads/cases/${filename}`;
 }
 
 export const getCases = async (req: Request, res: Response) => {
@@ -124,7 +122,7 @@ export const uploadCasePhotoHandler = async (req: Request, res: Response) => {
       confidence: aiResult.confidence,
       box: aiResult.box,
       hasEmbedding: aiResult.embedding.length === 512,
-      message: 'Photo uploaded and facial embedding extracted successfully.'
+      message: aiResult ? 'Photo uploaded and experimental image features generated.' : 'Photo uploaded. Image analysis is unavailable; no features were generated.'
     });
   } catch (error: any) {
     return res.status(500).json({ success: false, message: error.message });
@@ -134,20 +132,37 @@ export const uploadCasePhotoHandler = async (req: Request, res: Response) => {
 export const createCase = async (req: AuthRequest, res: Response) => {
   try {
     const {
-      name, age, gender, height, weight, hairColor, eyeColor,
+      name, age, gender, height, weight, hairColor, eyeColor, latitude, longitude,
       distinguishingFeatures, lastSeenDate, lastSeenTime, lastSeenLocation,
       description, clothingDescription, priority, contactAuthority, contactNumber, photos
     } = req.body;
 
-    if (!name || !age || !gender || !lastSeenDate || !lastSeenLocation) {
+    if (typeof name !== 'string' || !name.trim() || age === undefined || age === null || age === '' || gender === undefined || gender === null || gender === '' || !lastSeenDate || typeof lastSeenLocation !== 'string' || !lastSeenLocation.trim()) {
       return res.status(400).json({
         success: false,
         message: 'Name, age, gender, last seen date, and location are required fields.'
       });
     }
+    if (name.trim().length > 160 || !Number.isInteger(Number(age)) || Number(age) < 0 || Number(age) > 130 || !['Male', 'Female', 'Other'].includes(gender) || lastSeenLocation.trim().length > 500 || !/^\d{4}-\d{2}-\d{2}$/.test(lastSeenDate)) {
+      return res.status(400).json({ success: false, message: 'Check the name, age, gender, date, and last-seen location values.' });
+    }
+    const hasLatitude = latitude !== undefined && latitude !== '';
+    const hasLongitude = longitude !== undefined && longitude !== '';
+    if (hasLatitude !== hasLongitude || (hasLatitude && hasLongitude)) {
+      if (!Number.isFinite(Number(latitude)) || !Number.isFinite(Number(longitude)) || Number(latitude) < -90 || Number(latitude) > 90 || Number(longitude) < -180 || Number(longitude) > 180) {
+        return res.status(400).json({ success: false, message: 'Enter valid latitude and longitude together, or leave both blank.' });
+      }
+    }
+    if (photos !== undefined && (!Array.isArray(photos) || photos.length > 8 || photos.some((photo) => typeof photo !== 'string' || photo.length > 21 * 1024 * 1024) || photos.reduce((total, photo) => total + (typeof photo === 'string' && photo.startsWith('data:image/') ? photo.length : 0), 0) > 60 * 1024 * 1024)) {
+      return res.status(400).json({ success: false, message: 'Provide up to 8 reference photo URLs or images of 15 MB or smaller.' });
+    }
 
-    const nextIdNum = memoryStore.cases.length + 1;
-    const caseId = `MP-2026-${String(nextIdNum).padStart(4, '0')}`;
+    const caseYear = new Date().getUTCFullYear();
+    const nextIdNum = memoryStore.cases.reduce((highest, record) => {
+      const id = typeof record.caseId === 'string' ? record.caseId.match(new RegExp(`^MP-${caseYear}-(\\d+)$`)) : null;
+      return Math.max(highest, id ? Number(id[1]) : 0);
+    }, 0) + 1;
+    const caseId = `MP-${caseYear}-${String(nextIdNum).padStart(4, '0')}`;
 
     // Process and persist photos (convert any base64 to real files)
     const processedPhotos: string[] = [];
@@ -165,9 +180,9 @@ export const createCase = async (req: AuthRequest, res: Response) => {
 
 
 
-    // Extract real face embedding for primary photo
+    // Store experimental generic image features only when the AI service supplies them.
     let primaryEmbedding: number[] = [];
-    let faceQuality: any = { blur_score: 90.0, lighting_score: 85.0, pose_angle: 5.0, overall_quality: 0.90 };
+    let faceQuality: FaceRepresentation['quality'] | undefined;
 
     const firstPhoto = processedPhotos[0] || '';
     if (firstPhoto.startsWith('/uploads/cases/')) {
@@ -183,12 +198,12 @@ export const createCase = async (req: AuthRequest, res: Response) => {
       }
     }
 
-    const faceRep: FaceRepresentation | null = primaryEmbedding.length === 512 ? {
+    const faceRep: FaceRepresentation | null = primaryEmbedding.length === 512 && faceQuality ? {
       id: `emb-${caseId}-1`,
       caseId,
       photoUrl: processedPhotos[0],
       embedding: primaryEmbedding,
-      model: 'PyTorch-ResNet18-512d',
+      model: 'ImageNet-ResNet18-generic-512d',
       quality: faceQuality,
       createdAt: new Date().toISOString()
     } : null;
@@ -199,23 +214,23 @@ export const createCase = async (req: AuthRequest, res: Response) => {
       name,
       age: Number(age),
       gender,
-      height: height || '5 ft 7 in',
-      weight: weight || '60 kg',
-      hairColor: hairColor || 'Black',
-      eyeColor: eyeColor || 'Brown',
-      distinguishingFeatures: distinguishingFeatures || 'None noted',
+      height: height || '',
+      weight: weight || '',
+      hairColor: hairColor || '',
+      eyeColor: eyeColor || '',
+      distinguishingFeatures: distinguishingFeatures || '',
       lastSeenDate,
-      lastSeenTime: lastSeenTime || '12:00',
+      lastSeenTime: lastSeenTime || '',
       lastSeenLocation,
-      latitude: undefined,
-      longitude: undefined,
-      description: description || 'Missing person case reported to ReturnHome portal.',
-      clothingDescription: clothingDescription || 'Dark jacket and trousers',
+      latitude: !hasLatitude ? undefined : Number(latitude),
+      longitude: !hasLongitude ? undefined : Number(longitude),
+      description: description || '',
+      clothingDescription: clothingDescription || '',
       status: 'Active',
-      priority: priority || 'High',
+      priority: priority || 'Medium',
       photos: processedPhotos,
-      contactAuthority: contactAuthority || 'Special Missing Persons Unit, Delhi Police',
-      contactNumber: contactNumber || '+91-11-23410000',
+      contactAuthority: contactAuthority || '',
+      contactNumber: contactNumber || '',
       createdBy: req.user?.name || 'Investigator Officer',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -248,7 +263,15 @@ export const createCase = async (req: AuthRequest, res: Response) => {
     });
 
     // Save to disk
-    saveToDisk();
+    try {
+      saveToDisk();
+    } catch {
+      memoryStore.cases.shift();
+      if (faceRep) memoryStore.faceRepresentations.shift();
+      memoryStore.timeline.shift();
+      memoryStore.auditLogs.shift();
+      return res.status(503).json({ success: false, message: 'The case could not be persisted to disk. Check backend storage permissions and try again.' });
+    }
 
     return res.status(201).json({
       success: true,
@@ -257,7 +280,8 @@ export const createCase = async (req: AuthRequest, res: Response) => {
       message: `Case ${caseId} registered successfully in ReturnHome database.`
     });
   } catch (error: any) {
-    return res.status(500).json({ success: false, message: error.message });
+    const badImage = /reference image|each reference image/i.test(error?.message || '');
+    return res.status(badImage ? 400 : 500).json({ success: false, message: badImage ? error.message : 'Could not create the case record. Check the submitted values and backend storage.' });
   }
 };
 
@@ -271,23 +295,58 @@ export const updateCase = async (req: AuthRequest, res: Response) => {
     }
 
     const currentCase = memoryStore.cases[caseIndex];
+    const previousCase = { ...currentCase };
+    const previousTimelineLength = memoryStore.timeline.length;
+    const previousAuditLength = memoryStore.auditLogs.length;
+    const allowedFields = ['name', 'age', 'gender', 'height', 'weight', 'hairColor', 'eyeColor', 'distinguishingFeatures', 'lastSeenDate', 'lastSeenTime', 'lastSeenLocation', 'latitude', 'longitude', 'description', 'clothingDescription', 'status', 'priority', 'photos', 'contactAuthority', 'contactNumber'];
+    const requestBody = req.body && typeof req.body === 'object' ? req.body : {};
+    const updates = Object.fromEntries(allowedFields.filter((field) => Object.prototype.hasOwnProperty.call(requestBody, field)).map((field) => [field, requestBody[field]]));
+    if (updates.name !== undefined && (typeof updates.name !== 'string' || !updates.name.trim() || updates.name.trim().length > 160)) {
+      return res.status(400).json({ success: false, message: 'Enter a valid name up to 160 characters.' });
+    }
+    if (updates.age !== undefined && (!Number.isInteger(Number(updates.age)) || Number(updates.age) < 0 || Number(updates.age) > 130)) {
+      return res.status(400).json({ success: false, message: 'Age must be a whole number between 0 and 130.' });
+    }
+    if (updates.gender !== undefined && !['Male', 'Female', 'Other'].includes(updates.gender)) {
+      return res.status(400).json({ success: false, message: 'Choose a supported gender value.' });
+    }
+    if (updates.status !== undefined && !['Active', 'Under Investigation', 'Potential Match', 'Found', 'Closed'].includes(updates.status)) {
+      return res.status(400).json({ success: false, message: 'Choose a supported case status.' });
+    }
+    if (updates.priority !== undefined && !['Low', 'Medium', 'High', 'Critical'].includes(updates.priority)) {
+      return res.status(400).json({ success: false, message: 'Choose a supported priority.' });
+    }
+    const hasLatitude = updates.latitude !== undefined && updates.latitude !== '';
+    const hasLongitude = updates.longitude !== undefined && updates.longitude !== '';
+    if (hasLatitude !== hasLongitude || (hasLatitude && (!Number.isFinite(Number(updates.latitude)) || !Number.isFinite(Number(updates.longitude)) || Number(updates.latitude) < -90 || Number(updates.latitude) > 90 || Number(updates.longitude) < -180 || Number(updates.longitude) > 180))) {
+      return res.status(400).json({ success: false, message: 'Enter valid latitude and longitude together.' });
+    }
+    const textFieldLimits: Record<string, number> = { height: 80, weight: 80, hairColor: 120, eyeColor: 120, distinguishingFeatures: 2000, lastSeenDate: 20, lastSeenTime: 20, lastSeenLocation: 500, description: 4000, clothingDescription: 2000, contactAuthority: 200, contactNumber: 40 };
+    for (const [field, maxLength] of Object.entries(textFieldLimits)) {
+      if (updates[field] !== undefined && (typeof updates[field] !== 'string' || updates[field].length > maxLength)) {
+        return res.status(400).json({ success: false, message: `Check the ${field} value; it must be text with at most ${maxLength} characters.` });
+      }
+    }
+    if (updates.photos !== undefined && (!Array.isArray(updates.photos) || updates.photos.length > 8 || updates.photos.some((photo: unknown) => typeof photo !== 'string' || photo.length > 21 * 1024 * 1024))) {
+      return res.status(400).json({ success: false, message: 'Provide up to 8 valid reference photos.' });
+    }
     const updatedCase = {
       ...currentCase,
-      ...req.body,
+      ...updates,
       updatedAt: new Date().toISOString()
     };
 
     memoryStore.cases[caseIndex] = updatedCase;
 
     // Timeline event if status changed
-    if (req.body.status && req.body.status !== currentCase.status) {
+    if (updates.status && updates.status !== currentCase.status) {
       memoryStore.timeline.unshift({
         id: `evt-${Date.now()}`,
         caseId: currentCase.caseId,
         timestamp: new Date().toISOString(),
         user: req.user?.name || 'Investigator Officer',
         action: 'Status Updated',
-        description: `Case status changed from '${currentCase.status}' to '${req.body.status}'.`
+        description: `Case status changed from '${currentCase.status}' to '${updates.status}'.`
       });
     }
 
@@ -305,7 +364,14 @@ export const updateCase = async (req: AuthRequest, res: Response) => {
       timestamp: new Date().toISOString()
     });
 
-    saveToDisk();
+    try {
+      saveToDisk();
+    } catch {
+      memoryStore.cases[caseIndex] = previousCase;
+      memoryStore.timeline.length = previousTimelineLength;
+      memoryStore.auditLogs.length = previousAuditLength;
+      return res.status(503).json({ success: false, message: 'The case update could not be persisted to disk. Check backend storage permissions and try again.' });
+    }
 
     return res.json({
       success: true,

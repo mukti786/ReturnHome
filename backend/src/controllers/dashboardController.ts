@@ -24,14 +24,23 @@ export const getDashboardStats = async (req: Request, res: Response) => {
       { name: 'Found / Resolved', value: resolvedCases }
     ];
 
-    const monthlyTrends = [
-      { month: 'Apr', cases: 14, matches: 8 },
-      { month: 'May', cases: 18, matches: 12 },
-      { month: 'Jun', cases: 22, matches: 19 },
-      { month: 'Jul', cases: 29, matches: 25 },
-      { month: 'Aug', cases: 35, matches: 31 },
-      { month: 'Sep', cases: totalCases, matches: memoryStore.matches.length }
-    ];
+    const monthlyTrends = Array.from({ length: 6 }, (_, offset) => {
+      const monthDate = new Date();
+      monthDate.setDate(1);
+      monthDate.setHours(0, 0, 0, 0);
+      monthDate.setMonth(monthDate.getMonth() - (5 - offset));
+      const year = monthDate.getFullYear();
+      const month = monthDate.getMonth();
+      const cases = memoryStore.cases.filter((record) => {
+        const created = new Date(record.createdAt);
+        return created.getFullYear() === year && created.getMonth() === month;
+      }).length;
+      const matches = memoryStore.matches.filter((record) => {
+        const created = new Date(record.createdAt);
+        return created.getFullYear() === year && created.getMonth() === month;
+      }).length;
+      return { month: monthDate.toLocaleString('en', { month: 'short' }), cases, matches };
+    });
 
     return res.json({
       success: true,
@@ -49,7 +58,7 @@ export const getDashboardStats = async (req: Request, res: Response) => {
         casesByStatus,
         monthlyTrends
       },
-      disclaimer: 'AI-generated matches are potential leads only and must be independently verified by authorized personnel.'
+      disclaimer: 'Candidate records and generic image-feature similarities are unverified suggestions, not confirmed identities or sightings.'
     });
   } catch (error: any) {
     return res.status(500).json({ success: false, message: error.message });

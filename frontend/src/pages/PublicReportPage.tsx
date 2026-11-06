@@ -19,6 +19,7 @@ const PublicReportPage: React.FC = () => {
   const [form, setForm] = useState(blank);
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoError, setPhotoError] = useState('');
+  const [consentAcknowledged, setConsentAcknowledged] = useState(false);
   const [preview, setPreview] = useState('');
   const [error, setError] = useState('');
   const [result, setResult] = useState('');
@@ -57,6 +58,9 @@ const PublicReportPage: React.FC = () => {
     if (!form.reporterPhone.trim() && !form.reporterEmail.trim()) {
       setError('Provide a phone number or email address so the review team can contact you.'); return;
     }
+    if (!consentAcknowledged) {
+      setError('Confirm that you are authorized to share these details and understand how this deployment uses them.'); return;
+    }
     if ((form.preferredContact === 'Phone' && !form.reporterPhone.trim()) || (form.preferredContact === 'Email' && !form.reporterEmail.trim())) {
       setError('Add the contact detail that matches your preferred contact method.'); return;
     }
@@ -64,6 +68,7 @@ const PublicReportPage: React.FC = () => {
     setSubmitting(true);
     const data = new FormData();
     Object.entries(form).forEach(([key, value]) => data.append(key, value));
+    data.append('consentAcknowledged', String(consentAcknowledged));
     if (photo) data.append('photo', photo);
     try {
       const response = await apiService.createPublicReport(data);
@@ -71,7 +76,7 @@ const PublicReportPage: React.FC = () => {
         throw new Error(response.message || 'The server did not confirm that the report was saved. Your details remain in this form.');
       }
       setResult(`${response.message} Reference: ${response.report.referenceId}.`);
-      setForm(blank); setPhoto(null);
+      setForm(blank); setPhoto(null); setConsentAcknowledged(false);
     } catch (submissionError) {
       setError(submissionError instanceof Error ? submissionError.message : 'The report could not be submitted. Your details remain in this form.');
     } finally { submitLock.current = false; setSubmitting(false); }
@@ -164,7 +169,7 @@ const PublicReportPage: React.FC = () => {
           </div>
         </section>
 
-        <div className="flex items-start gap-3 rounded-xl border border-slate-800 bg-slate-900/50 p-4 text-xs leading-5 text-slate-400"><ShieldAlert size={17} className="mt-0.5 shrink-0 text-teal-300" /><p>Submitting shares this information with authorized users of this ReturnHome deployment. It is not automatically sent to police, emergency services, or any other agency.</p></div>
+        <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-800 bg-slate-900/50 p-4 text-xs leading-5 text-slate-300"><input type="checkbox" required checked={consentAcknowledged} onChange={(event) => setConsentAcknowledged(event.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-teal-400" /><span>I am authorized to share this information and understand it will be stored for review by authorized users of this ReturnHome deployment. It is not automatically sent to police, emergency services, or any other agency.</span></label>
         <button type="submit" disabled={submitting} className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-teal-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-teal-200 disabled:cursor-wait disabled:opacity-60 sm:w-auto sm:min-w-56">{submitting ? 'Saving report…' : 'Submit report'}</button>
       </form>
     </main>

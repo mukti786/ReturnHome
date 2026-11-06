@@ -92,17 +92,6 @@ def detect_faces(img_bgr: np.ndarray):
                         "quality": q,
                         "crop": crop
                     })
-    if not faces_list:
-        crop_w, crop_h = int(w * 0.6), int(h * 0.6)
-        x1 = max(0, (w - crop_w) // 2)
-        y1 = max(0, (h - crop_h) // 3)
-        crop = img_bgr[y1:y1+crop_h, x1:x1+crop_w]
-        faces_list.append({
-            "box": {"x": x1, "y": y1, "width": crop_w, "height": crop_h},
-            "confidence": 0.85,
-            "quality": evaluate_quality(crop),
-            "crop": crop
-        })
     return faces_list
 
 def extract_embedding(face_bgr: np.ndarray):
@@ -122,6 +111,9 @@ def cmd_embed(args):
         print(json.dumps({"success": False, "message": "Failed to read image"}))
         return
     faces = detect_faces(img)
+    if not faces:
+        print(json.dumps({"success": False, "message": "No face was detected. No embedding was generated."}))
+        return
     emb = extract_embedding(faces[0]["crop"])
     print(json.dumps({
         "success": True,

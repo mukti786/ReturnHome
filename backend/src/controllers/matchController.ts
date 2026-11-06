@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { memoryStore } from '../store/memoryStore';
+import { memoryStore, saveToDisk } from '../store/memoryStore';
 import { AuthRequest } from '../middleware/authMiddleware';
 
 export const getMatches = async (req: Request, res: Response) => {
@@ -31,7 +31,7 @@ export const getMatches = async (req: Request, res: Response) => {
       success: true,
       total: filtered.length,
       matches: filtered,
-      disclaimer: 'AI-generated matches are potential leads only and must be independently verified by authorized personnel.'
+      disclaimer: 'Candidate records and generic image-feature similarities are unverified suggestions, not confirmed identities or sightings.'
     });
   } catch (error: any) {
     return res.status(500).json({ success: false, message: error.message });
@@ -53,7 +53,7 @@ export const getMatchById = async (req: Request, res: Response) => {
       success: true,
       match,
       case: relatedCase,
-      disclaimer: 'AI-generated matches are potential leads only and must be independently verified by authorized personnel.'
+      disclaimer: 'Candidate records and generic image-feature similarities are unverified suggestions, not confirmed identities or sightings.'
     });
   } catch (error: any) {
     return res.status(500).json({ success: false, message: error.message });
@@ -63,13 +63,17 @@ export const getMatchById = async (req: Request, res: Response) => {
 export const reviewMatch = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { status, notes } = req.body;
+    const { status } = req.body;
+    const notes = typeof req.body?.notes === 'string' ? req.body.notes.trim() : '';
 
     if (!status || !['Accepted Lead', 'Rejected', 'Escalated', 'Verified'].includes(status)) {
       return res.status(400).json({
         success: false,
         message: 'Valid review status is required (Accepted Lead, Rejected, Escalated, Verified).'
       });
+    }
+    if (!notes || notes.length > 4000) {
+      return res.status(400).json({ success: false, message: 'Enter review notes (up to 4,000 characters) before saving this decision.' });
     }
 
     const matchIndex = memoryStore.matches.findIndex(m => m.matchId === id || m._id === id);
@@ -78,17 +82,19 @@ export const reviewMatch = async (req: AuthRequest, res: Response) => {
     }
 
     const match = memoryStore.matches[matchIndex];
+    const previousMatch = { ...match };
     const reviewerName = req.user?.name || 'Authorized Investigator';
 
     match.status = status;
     match.reviewedBy = reviewerName;
     match.reviewedAt = new Date().toISOString();
-    match.notes = notes || `Investigator verification performed by ${reviewerName}.`;
+    match.notes = notes;
 
     memoryStore.matches[matchIndex] = match;
 
     // Update Case status if Accepted Lead or Verified
     const caseIndex = memoryStore.cases.findIndex(c => c.caseId === match.caseId);
+    const previousCaseStatus = caseIndex !== -1 ? memoryStore.cases[caseIndex].status : undefined;
     if (caseIndex !== -1) {
       if (status === 'Accepted Lead' || status === 'Verified') {
         memoryStore.cases[caseIndex].status = 'Potential Match';
@@ -119,11 +125,21 @@ export const reviewMatch = async (req: AuthRequest, res: Response) => {
       timestamp: new Date().toISOString()
     });
 
+    try {
+      saveToDisk();
+    } catch {
+      memoryStore.matches[matchIndex] = previousMatch;
+      if (caseIndex !== -1 && previousCaseStatus !== undefined) memoryStore.cases[caseIndex].status = previousCaseStatus;
+      memoryStore.timeline.shift();
+      memoryStore.auditLogs.shift();
+      return res.status(503).json({ success: false, message: 'The review could not be persisted to disk. Check backend storage permissions and try again.' });
+    }
+
     return res.json({
       success: true,
       match,
       message: `Candidate match review updated to '${status}'.`,
-      disclaimer: 'AI-generated matches are potential leads only and must be independently verified by authorized personnel.'
+      disclaimer: 'Candidate records and generic image-feature similarities are unverified suggestions, not confirmed identities or sightings.'
     });
   } catch (error: any) {
     return res.status(500).json({ success: false, message: error.message });
