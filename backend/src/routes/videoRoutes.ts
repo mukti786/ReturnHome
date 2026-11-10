@@ -1,9 +1,16 @@
 import { Router } from 'express';
-import { analyzeVideo } from '../controllers/videoController';
-import { protect } from '../middleware/authMiddleware';
+import { uploadVideo, getVideoJobs, getVideoJobById } from '../controllers/videoController';
+import { protect, restrictTo } from '../middleware/authMiddleware';
+import { uploadVideoFile } from '../middleware/uploadMiddleware';
 
 const router = Router();
 router.use(protect);
-router.post('/analyze', analyzeVideo);
-export default router;
 
+// Upload a video for processing
+router.post('/upload', uploadVideoFile.single('video'), uploadVideo);
+
+// Get all processing jobs (admin/investigator sees all, citizen sees own)
+router.get('/', getVideoJobs);
+router.get('/:id', getVideoJobById);
+
+export default router;

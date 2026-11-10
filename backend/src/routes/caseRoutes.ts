@@ -1,12 +1,26 @@
 import { Router } from 'express';
-import { getCases, getCaseById, createCase, updateCase } from '../controllers/caseController';
+import {
+  getCases, getCaseById, createCase, updateCase,
+  uploadCasePhotoHandler, getMyCases, getCaseEmbedding, getAllEmbeddings
+} from '../controllers/caseController';
 import { protect, restrictTo } from '../middleware/authMiddleware';
+import { uploadCasePhoto } from '../middleware/uploadMiddleware';
 
 const router = Router();
 router.use(protect);
-router.get('/', getCases);
-router.get('/:id', getCaseById);
-router.post('/', restrictTo('Admin', 'Investigator'), createCase);
-router.put('/:id', restrictTo('Admin', 'Investigator'), updateCase);
-export default router;
 
+// All authenticated users can read cases
+router.get('/', getCases);
+router.get('/my', getMyCases);
+router.get('/embeddings', restrictTo('Admin', 'Investigator', 'Analyst'), getAllEmbeddings);
+router.get('/:id', getCaseById);
+router.get('/:id/embedding', restrictTo('Admin', 'Investigator', 'Analyst'), getCaseEmbedding);
+
+// Citizens can create and edit their own cases; Investigators+ can create/edit any
+router.post('/', createCase);
+router.put('/:id', updateCase);
+
+// Photo upload endpoint (multipart)
+router.post('/upload-photo', restrictTo('Admin', 'Investigator', 'Citizen'), uploadCasePhoto.single('photo'), uploadCasePhotoHandler);
+
+export default router;

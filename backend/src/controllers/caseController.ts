@@ -2,13 +2,15 @@ import { Request, Response } from 'express';
 import path from 'path';
 import fs from 'fs';
 import { randomUUID } from 'crypto';
-import { memoryStore, saveToDisk, FaceRepresentation } from '../store/memoryStore';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { AIService } from '../services/aiService';
+import { Case } from '../models/Case';
+import { DetectionEvent } from '../models/DetectionEvent';
+import { AuditLog } from '../models/AuditLog';
+import { isMongoConnected } from '../config/db';
 
 const CASES_UPLOAD_DIR = path.resolve(__dirname, '../../uploads/cases');
 
-// Helper to save base64 data URL to disk
 function saveBase64Image(dataUrl: string, prefix: string): string {
   const matches = dataUrl.match(/^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/]+=*)$/i);
   if (!matches) throw new Error('Reference images must be valid JPEG, PNG, or WebP data.');
@@ -26,103 +28,114 @@ function saveBase64Image(dataUrl: string, prefix: string): string {
   return `/uploads/cases/${filename}`;
 }
 
+async function writeAuditLog(data: {
+  userId: string; userName: string; userRole: string;
+  action: string; resource: string; resourceId?: string;
+  ipAddress: string; details: string;
+}) {
+  try {
+    if (isMongoConnected) {
+      await AuditLog.create({ ...data, timestamp: new Date() });
+    }
+  } catch { /* Audit log failure must not block operations */ }
+}
+
+function dbUnavailable(res: Response) {
+  return res.status(503).json({ success: false, message: 'Database is unavailable. Please try again later.' });
+}
+
 export const getCases = async (req: Request, res: Response) => {
+  if (!isMongoConnected) return dbUnavailable(res);
   try {
     const { search, status, priority, gender, ageMin, ageMax, page = 1, limit = 10 } = req.query;
-
-    let filtered = [...memoryStore.cases];
+    const filter: Record<string, any> = {};
 
     if (search) {
-      const q = String(search).toLowerCase();
-      filtered = filtered.filter(
-        c => c.name.toLowerCase().includes(q) ||
-             c.caseId.toLowerCase().includes(q) ||
-             c.lastSeenLocation.toLowerCase().includes(q)
-      );
+      const q = String(search).trim();
+      if (q) {
+        filter.$or = [
+          { name: { $regex: q, $options: 'i' } },
+          { caseId: { $regex: q, $options: 'i' } },
+          { lastSeenLocation: { $regex: q, $options: 'i' } }
+        ];
+      }
     }
+    if (status && status !== 'All') filter.status = status;
+    if (priority && priority !== 'All') filter.priority = priority;
+    if (gender && gender !== 'All') filter.gender = gender;
+    if (ageMin) filter.age = { ...filter.age, $gte: Number(ageMin) };
+    if (ageMax) filter.age = { ...filter.age, $lte: Number(ageMax) };
 
-    if (status && status !== 'All') {
-      filtered = filtered.filter(c => c.status === status);
-    }
+    const total = await Case.countDocuments(filter);
+    const cases = await Case.find(filter)
+      .sort({ createdAt: -1 })
+      .skip((Number(page) - 1) * Number(limit))
+      .limit(Number(limit))
+      .select('-faceEmbedding -activityLog')
+      .lean();
 
-    if (priority && priority !== 'All') {
-      filtered = filtered.filter(c => c.priority === priority);
-    }
-
-    if (gender && gender !== 'All') {
-      filtered = filtered.filter(c => c.gender === gender);
-    }
-
-    if (ageMin) {
-      filtered = filtered.filter(c => c.age >= Number(ageMin));
-    }
-    if (ageMax) {
-      filtered = filtered.filter(c => c.age <= Number(ageMax));
-    }
-
-    const startIndex = (Number(page) - 1) * Number(limit);
-    const paginated = filtered.slice(startIndex, startIndex + Number(limit));
-
-    return res.json({
-      success: true,
-      total: filtered.length,
-      page: Number(page),
-      limit: Number(limit),
-      cases: paginated
-    });
+    return res.json({ success: true, total, page: Number(page), limit: Number(limit), cases });
   } catch (error: any) {
     return res.status(500).json({ success: false, message: error.message });
   }
 };
 
 export const getCaseById = async (req: Request, res: Response) => {
+  if (!isMongoConnected) return dbUnavailable(res);
   try {
     const { id } = req.params;
-    const caseItem = memoryStore.cases.find(c => c.caseId === id || c._id === id);
+    const filter = id.match(/^[0-9a-fA-F]{24}$/) ? { _id: id } : { caseId: id };
+    const caseDoc = await Case.findOne(filter).select('-faceEmbedding').lean();
 
-    if (!caseItem) {
+    if (!caseDoc) {
       return res.status(404).json({ success: false, message: 'Case not found.' });
     }
 
-    // Get related potential matches
-    const relatedMatches = memoryStore.matches.filter(m => m.caseId === caseItem.caseId);
-    // Get timeline events
-    const timelineEvents = memoryStore.timeline.filter(t => t.caseId === caseItem.caseId);
-    // Get face representations
-    const representations = memoryStore.faceRepresentations.filter(f => f.caseId === caseItem.caseId);
+    // Get related detection events (matches)
+    const detections = await DetectionEvent.find({ $or: [{ caseId: caseDoc._id }, { caseRef: caseDoc.caseId }] })
+      .sort({ sourceTimestamp: -1 })
+      .limit(50)
+      .lean();
 
     return res.json({
       success: true,
-      case: caseItem,
-      matches: relatedMatches,
-      timeline: timelineEvents,
-      faceRepresentations: representations
+      case: caseDoc,
+      detections,
+      activityLog: (caseDoc as any).activityLog || []
     });
   } catch (error: any) {
     return res.status(500).json({ success: false, message: error.message });
   }
 };
 
-export const uploadCasePhotoHandler = async (req: Request, res: Response) => {
+export const uploadCasePhotoHandler = async (req: AuthRequest, res: Response) => {
   try {
     if (!req.file) {
       return res.status(400).json({ success: false, message: 'No photo file provided.' });
     }
-
     const photoUrl = `/uploads/cases/${req.file.filename}`;
     const filePath = req.file.path;
 
-    // Run AI feature extraction on the uploaded photo
-    const aiResult = await AIService.extractEmbedding(filePath);
+    let quality: any = null;
+    let confidence: number | null = null;
+    let box: any = null;
+
+    try {
+      const aiResult = await AIService.extractEmbedding(filePath);
+      quality = aiResult.quality;
+      confidence = aiResult.confidence;
+      box = aiResult.box;
+    } catch {
+      // AI service may be offline — photo is still saved
+    }
 
     return res.json({
       success: true,
       photoUrl,
-      quality: aiResult.quality,
-      confidence: aiResult.confidence,
-      box: aiResult.box,
-      hasEmbedding: aiResult.embedding.length === 512,
-      message: aiResult ? 'Photo uploaded and experimental image features generated.' : 'Photo uploaded. Image analysis is unavailable; no features were generated.'
+      quality,
+      confidence,
+      box,
+      message: quality ? 'Photo uploaded and experimental image features assessed.' : 'Photo uploaded. Image analysis unavailable.'
     });
   } catch (error: any) {
     return res.status(500).json({ success: false, message: error.message });
@@ -130,41 +143,60 @@ export const uploadCasePhotoHandler = async (req: Request, res: Response) => {
 };
 
 export const createCase = async (req: AuthRequest, res: Response) => {
+  if (!isMongoConnected) return dbUnavailable(res);
   try {
     const {
       name, age, gender, height, weight, hairColor, eyeColor, latitude, longitude,
       distinguishingFeatures, lastSeenDate, lastSeenTime, lastSeenLocation,
-      description, clothingDescription, priority, contactAuthority, contactNumber, photos
+      description, clothingDescription, priority, photos,
+      contactName, contactPhone, contactEmail, contactAuthority, contactNumber
     } = req.body;
 
-    if (typeof name !== 'string' || !name.trim() || age === undefined || age === null || age === '' || gender === undefined || gender === null || gender === '' || !lastSeenDate || typeof lastSeenLocation !== 'string' || !lastSeenLocation.trim()) {
+    // Required field validation
+    if (typeof name !== 'string' || !name.trim() ||
+        age === undefined || age === null || age === '' ||
+        !lastSeenDate || typeof lastSeenLocation !== 'string' || !lastSeenLocation.trim() ||
+        typeof description !== 'string' || !description.trim()) {
       return res.status(400).json({
         success: false,
-        message: 'Name, age, gender, last seen date, and location are required fields.'
+        message: 'Name, age, last seen date, location, and description are required fields.'
       });
     }
-    if (name.trim().length > 160 || !Number.isInteger(Number(age)) || Number(age) < 0 || Number(age) > 130 || !['Male', 'Female', 'Other'].includes(gender) || lastSeenLocation.trim().length > 500 || !/^\d{4}-\d{2}-\d{2}$/.test(lastSeenDate)) {
+    if (name.trim().length > 160 ||
+        !Number.isInteger(Number(age)) || Number(age) < 0 || Number(age) > 130 ||
+        (gender && !['Male', 'Female', 'Other', 'Not Specified'].includes(gender)) ||
+        lastSeenLocation.trim().length > 500 ||
+        !/^\d{4}-\d{2}-\d{2}$/.test(lastSeenDate)) {
       return res.status(400).json({ success: false, message: 'Check the name, age, gender, date, and last-seen location values.' });
     }
+
+    // Coordinate validation
     const hasLatitude = latitude !== undefined && latitude !== '';
     const hasLongitude = longitude !== undefined && longitude !== '';
-    if (hasLatitude !== hasLongitude || (hasLatitude && hasLongitude)) {
-      if (!Number.isFinite(Number(latitude)) || !Number.isFinite(Number(longitude)) || Number(latitude) < -90 || Number(latitude) > 90 || Number(longitude) < -180 || Number(longitude) > 180) {
-        return res.status(400).json({ success: false, message: 'Enter valid latitude and longitude together, or leave both blank.' });
-      }
-    }
-    if (photos !== undefined && (!Array.isArray(photos) || photos.length > 8 || photos.some((photo) => typeof photo !== 'string' || photo.length > 21 * 1024 * 1024) || photos.reduce((total, photo) => total + (typeof photo === 'string' && photo.startsWith('data:image/') ? photo.length : 0), 0) > 60 * 1024 * 1024)) {
-      return res.status(400).json({ success: false, message: 'Provide up to 8 reference photo URLs or images of 15 MB or smaller.' });
+    if (hasLatitude !== hasLongitude ||
+        (hasLatitude && (!Number.isFinite(Number(latitude)) || !Number.isFinite(Number(longitude)) ||
+         Number(latitude) < -90 || Number(latitude) > 90 ||
+         Number(longitude) < -180 || Number(longitude) > 180))) {
+      return res.status(400).json({ success: false, message: 'Enter valid latitude and longitude together, or leave both blank.' });
     }
 
-    const caseYear = new Date().getUTCFullYear();
-    const nextIdNum = memoryStore.cases.reduce((highest, record) => {
-      const id = typeof record.caseId === 'string' ? record.caseId.match(new RegExp(`^MP-${caseYear}-(\\d+)$`)) : null;
-      return Math.max(highest, id ? Number(id[1]) : 0);
-    }, 0) + 1;
-    const caseId = `MP-${caseYear}-${String(nextIdNum).padStart(4, '0')}`;
+    // Photo validation
+    if (photos !== undefined && (!Array.isArray(photos) || photos.length > 8 ||
+        photos.some((photo: unknown) => typeof photo !== 'string' || photo.length > 21 * 1024 * 1024))) {
+      return res.status(400).json({ success: false, message: 'Provide up to 8 reference photos.' });
+    }
 
-    // Process and persist photos (convert any base64 to real files)
+    // Generate unique case ID
+    const year = new Date().getUTCFullYear();
+    const lastCase = await Case.findOne({ caseId: { $regex: `^MP-${year}-` } }).sort({ caseId: -1 }).select('caseId').lean();
+    let nextNum = 1;
+    if (lastCase?.caseId) {
+      const m = lastCase.caseId.match(/^MP-\d{4}-(\d+)$/);
+      if (m) nextNum = parseInt(m[1], 10) + 1;
+    }
+    const caseId = `MP-${year}-${String(nextNum).padStart(4, '0')}`;
+
+    // Process photos
     const processedPhotos: string[] = [];
     if (Array.isArray(photos)) {
       for (let i = 0; i < photos.length; i++) {
@@ -178,11 +210,9 @@ export const createCase = async (req: AuthRequest, res: Response) => {
       }
     }
 
-
-
-    // Store experimental generic image features only when the AI service supplies them.
-    let primaryEmbedding: number[] = [];
-    let faceQuality: FaceRepresentation['quality'] | undefined;
+    // AI embedding for first local photo
+    let faceEmbedding: number[] | undefined;
+    let faceQuality: any;
 
     const firstPhoto = processedPhotos[0] || '';
     if (firstPhoto.startsWith('/uploads/cases/')) {
@@ -190,30 +220,29 @@ export const createCase = async (req: AuthRequest, res: Response) => {
       if (fs.existsSync(localFilePath)) {
         try {
           const aiRes = await AIService.extractEmbedding(localFilePath);
-          primaryEmbedding = aiRes.embedding;
-          faceQuality = aiRes.quality;
+          if (aiRes.embedding.length === 512) {
+            faceEmbedding = aiRes.embedding;
+            faceQuality = aiRes.quality;
+          }
         } catch {
-          // Keep the case record, but do not fabricate an embedding when analysis is unavailable.
+          // AI service offline — keep case without embedding
         }
       }
     }
 
-    const faceRep: FaceRepresentation | null = primaryEmbedding.length === 512 && faceQuality ? {
-      id: `emb-${caseId}-1`,
-      caseId,
-      photoUrl: processedPhotos[0],
-      embedding: primaryEmbedding,
-      model: 'ImageNet-ResNet18-generic-512d',
-      quality: faceQuality,
-      createdAt: new Date().toISOString()
-    } : null;
-    if (faceRep) memoryStore.faceRepresentations.unshift(faceRep);
+    const activityEntry = {
+      timestamp: new Date(),
+      userId: req.user?.id || 'system',
+      userName: req.user?.name || 'System',
+      action: 'Case Registered',
+      description: `Missing person case ${caseId} created for ${name.trim()}.`
+    };
 
-    const newCase = {
+    const newCase = await Case.create({
       caseId,
-      name,
+      name: name.trim(),
       age: Number(age),
-      gender,
+      gender: gender || 'Not Specified',
       height: height || '',
       weight: weight || '',
       hairColor: hairColor || '',
@@ -221,167 +250,211 @@ export const createCase = async (req: AuthRequest, res: Response) => {
       distinguishingFeatures: distinguishingFeatures || '',
       lastSeenDate,
       lastSeenTime: lastSeenTime || '',
-      lastSeenLocation,
-      latitude: !hasLatitude ? undefined : Number(latitude),
-      longitude: !hasLongitude ? undefined : Number(longitude),
-      description: description || '',
+      lastSeenLocation: lastSeenLocation.trim(),
+      latitude: hasLatitude ? Number(latitude) : undefined,
+      longitude: hasLongitude ? Number(longitude) : undefined,
+      description: description.trim(),
       clothingDescription: clothingDescription || '',
-      status: 'Active',
+      status: 'Submitted',
       priority: priority || 'Medium',
       photos: processedPhotos,
+      contactName: contactName || '',
+      contactPhone: contactPhone || '',
+      contactEmail: contactEmail || '',
       contactAuthority: contactAuthority || '',
       contactNumber: contactNumber || '',
-      createdBy: req.user?.name || 'Investigator Officer',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-
-    memoryStore.cases.unshift(newCase);
-
-    // Record initial timeline event
-    memoryStore.timeline.unshift({
-      id: `evt-${Date.now()}`,
-      caseId,
-      timestamp: new Date().toISOString(),
-      user: req.user?.name || 'Investigator Officer',
-      action: 'Case Registered',
-      description: `New missing person profile registered for ${name} (${caseId}). Reference record created; analysis features are available only when a valid representation exists.`
+      createdBy: req.user?.id,
+      createdByName: req.user?.name || 'Unknown',
+      createdByRole: req.user?.role || '',
+      faceEmbedding,
+      faceQuality,
+      activityLog: [activityEntry]
     });
 
-    // Record Audit Log
-    memoryStore.auditLogs.unshift({
-      id: `log-${Date.now()}`,
-      userId: req.user?.id || 'usr-admin-1',
-      userName: req.user?.name || 'Inspector Vikram Singh',
-      userRole: req.user?.role || 'Admin',
+    await writeAuditLog({
+      userId: req.user?.id || 'system',
+      userName: req.user?.name || 'System',
+      userRole: req.user?.role || '',
       action: 'CASE_CREATE',
       resource: 'Cases',
       resourceId: caseId,
-      ipAddress: req.ip || '127.0.0.1',
-      details: `Created missing person case ${caseId} for ${name}.`,
-      timestamp: new Date().toISOString()
+      ipAddress: req.ip || 'unknown',
+      details: `Created missing person case ${caseId} for ${name.trim()}.`
     });
 
-    // Save to disk
-    try {
-      saveToDisk();
-    } catch {
-      memoryStore.cases.shift();
-      if (faceRep) memoryStore.faceRepresentations.shift();
-      memoryStore.timeline.shift();
-      memoryStore.auditLogs.shift();
-      return res.status(503).json({ success: false, message: 'The case could not be persisted to disk. Check backend storage permissions and try again.' });
-    }
+    const responseCase = newCase.toObject();
+    delete (responseCase as any).faceEmbedding;
 
     return res.status(201).json({
       success: true,
-      case: newCase,
-      ...(faceRep ? { faceRepresentation: faceRep } : {}),
-      message: `Case ${caseId} registered successfully in ReturnHome database.`
+      case: responseCase,
+      hasEmbedding: !!faceEmbedding,
+      message: `Case ${caseId} registered successfully.`
     });
   } catch (error: any) {
     const badImage = /reference image|each reference image/i.test(error?.message || '');
-    return res.status(badImage ? 400 : 500).json({ success: false, message: badImage ? error.message : 'Could not create the case record. Check the submitted values and backend storage.' });
+    return res.status(badImage ? 400 : 500).json({
+      success: false,
+      message: badImage ? error.message : 'Could not create the case record.'
+    });
   }
 };
 
 export const updateCase = async (req: AuthRequest, res: Response) => {
+  if (!isMongoConnected) return dbUnavailable(res);
   try {
     const { id } = req.params;
-    const caseIndex = memoryStore.cases.findIndex(c => c.caseId === id || c._id === id);
+    const filter = id.match(/^[0-9a-fA-F]{24}$/) ? { _id: id } : { caseId: id };
+    const caseDoc = await Case.findOne(filter);
 
-    if (caseIndex === -1) {
+    if (!caseDoc) {
       return res.status(404).json({ success: false, message: 'Case not found.' });
     }
 
-    const currentCase = memoryStore.cases[caseIndex];
-    const previousCase = { ...currentCase };
-    const previousTimelineLength = memoryStore.timeline.length;
-    const previousAuditLength = memoryStore.auditLogs.length;
-    const allowedFields = ['name', 'age', 'gender', 'height', 'weight', 'hairColor', 'eyeColor', 'distinguishingFeatures', 'lastSeenDate', 'lastSeenTime', 'lastSeenLocation', 'latitude', 'longitude', 'description', 'clothingDescription', 'status', 'priority', 'photos', 'contactAuthority', 'contactNumber'];
+    // Role-based ownership check: Citizen can only edit their own cases
+    if (req.user?.role === 'Citizen' && String(caseDoc.createdBy) !== req.user?.id) {
+      return res.status(403).json({ success: false, message: 'You can only edit cases you have submitted.' });
+    }
+
+    const allowedFields = [
+      'name', 'age', 'gender', 'height', 'weight', 'hairColor', 'eyeColor',
+      'distinguishingFeatures', 'lastSeenDate', 'lastSeenTime', 'lastSeenLocation',
+      'latitude', 'longitude', 'description', 'clothingDescription', 'status', 'priority',
+      'photos', 'contactName', 'contactPhone', 'contactEmail', 'contactAuthority', 'contactNumber',
+      'assignedInvestigator', 'assignedInvestigatorName'
+    ];
+
     const requestBody = req.body && typeof req.body === 'object' ? req.body : {};
-    const updates = Object.fromEntries(allowedFields.filter((field) => Object.prototype.hasOwnProperty.call(requestBody, field)).map((field) => [field, requestBody[field]]));
-    if (updates.name !== undefined && (typeof updates.name !== 'string' || !updates.name.trim() || updates.name.trim().length > 160)) {
-      return res.status(400).json({ success: false, message: 'Enter a valid name up to 160 characters.' });
-    }
-    if (updates.age !== undefined && (!Number.isInteger(Number(updates.age)) || Number(updates.age) < 0 || Number(updates.age) > 130)) {
-      return res.status(400).json({ success: false, message: 'Age must be a whole number between 0 and 130.' });
-    }
-    if (updates.gender !== undefined && !['Male', 'Female', 'Other'].includes(updates.gender)) {
-      return res.status(400).json({ success: false, message: 'Choose a supported gender value.' });
-    }
-    if (updates.status !== undefined && !['Active', 'Under Investigation', 'Potential Match', 'Found', 'Closed'].includes(updates.status)) {
-      return res.status(400).json({ success: false, message: 'Choose a supported case status.' });
-    }
-    if (updates.priority !== undefined && !['Low', 'Medium', 'High', 'Critical'].includes(updates.priority)) {
-      return res.status(400).json({ success: false, message: 'Choose a supported priority.' });
-    }
-    const hasLatitude = updates.latitude !== undefined && updates.latitude !== '';
-    const hasLongitude = updates.longitude !== undefined && updates.longitude !== '';
-    if (hasLatitude !== hasLongitude || (hasLatitude && (!Number.isFinite(Number(updates.latitude)) || !Number.isFinite(Number(updates.longitude)) || Number(updates.latitude) < -90 || Number(updates.latitude) > 90 || Number(updates.longitude) < -180 || Number(updates.longitude) > 180))) {
-      return res.status(400).json({ success: false, message: 'Enter valid latitude and longitude together.' });
-    }
-    const textFieldLimits: Record<string, number> = { height: 80, weight: 80, hairColor: 120, eyeColor: 120, distinguishingFeatures: 2000, lastSeenDate: 20, lastSeenTime: 20, lastSeenLocation: 500, description: 4000, clothingDescription: 2000, contactAuthority: 200, contactNumber: 40 };
-    for (const [field, maxLength] of Object.entries(textFieldLimits)) {
-      if (updates[field] !== undefined && (typeof updates[field] !== 'string' || updates[field].length > maxLength)) {
-        return res.status(400).json({ success: false, message: `Check the ${field} value; it must be text with at most ${maxLength} characters.` });
+    const updates: Record<string, any> = {};
+    for (const field of allowedFields) {
+      if (Object.prototype.hasOwnProperty.call(requestBody, field)) {
+        updates[field] = requestBody[field];
       }
     }
-    if (updates.photos !== undefined && (!Array.isArray(updates.photos) || updates.photos.length > 8 || updates.photos.some((photo: unknown) => typeof photo !== 'string' || photo.length > 21 * 1024 * 1024))) {
-      return res.status(400).json({ success: false, message: 'Provide up to 8 valid reference photos.' });
+
+    // Citizens cannot change case status
+    if (req.user?.role === 'Citizen' && updates.status !== undefined) {
+      delete updates.status;
     }
-    const updatedCase = {
-      ...currentCase,
-      ...updates,
-      updatedAt: new Date().toISOString()
-    };
 
-    memoryStore.cases[caseIndex] = updatedCase;
+    // Validate status enum
+    const validStatuses = ['Submitted', 'Under Review', 'Active Investigation', 'Potential Sighting', 'Match Under Verification', 'Located', 'Closed'];
+    if (updates.status !== undefined && !validStatuses.includes(updates.status)) {
+      return res.status(400).json({ success: false, message: 'Choose a supported case status.' });
+    }
 
-    // Timeline event if status changed
-    if (updates.status && updates.status !== currentCase.status) {
-      memoryStore.timeline.unshift({
-        id: `evt-${Date.now()}`,
-        caseId: currentCase.caseId,
-        timestamp: new Date().toISOString(),
-        user: req.user?.name || 'Investigator Officer',
+    const previousStatus = caseDoc.status;
+    const activityEntries: any[] = [];
+
+    if (updates.status && updates.status !== previousStatus) {
+      activityEntries.push({
+        timestamp: new Date(),
+        userId: req.user?.id || 'system',
+        userName: req.user?.name || 'System',
         action: 'Status Updated',
-        description: `Case status changed from '${currentCase.status}' to '${updates.status}'.`
+        description: `Case status changed from '${previousStatus}' to '${updates.status}'.`
       });
     }
 
-    // Audit Log
-    memoryStore.auditLogs.unshift({
-      id: `log-${Date.now()}`,
-      userId: req.user?.id || 'usr-admin-1',
-      userName: req.user?.name || 'Inspector Vikram Singh',
-      userRole: req.user?.role || 'Admin',
-      action: 'CASE_UPDATE',
-      resource: 'Cases',
-      resourceId: currentCase.caseId,
-      ipAddress: req.ip || '127.0.0.1',
-      details: `Updated details for case ${currentCase.caseId}.`,
-      timestamp: new Date().toISOString()
+    activityEntries.push({
+      timestamp: new Date(),
+      userId: req.user?.id || 'system',
+      userName: req.user?.name || 'System',
+      action: 'Case Updated',
+      description: `Case details updated. Fields changed: ${Object.keys(updates).join(', ')}.`
     });
 
-    try {
-      saveToDisk();
-    } catch {
-      memoryStore.cases[caseIndex] = previousCase;
-      memoryStore.timeline.length = previousTimelineLength;
-      memoryStore.auditLogs.length = previousAuditLength;
-      return res.status(503).json({ success: false, message: 'The case update could not be persisted to disk. Check backend storage permissions and try again.' });
+    const updatedCase = await Case.findOneAndUpdate(
+      filter,
+      { ...updates, $push: { activityLog: { $each: activityEntries } } },
+      { new: true }
+    ).select('-faceEmbedding').lean();
+
+    await writeAuditLog({
+      userId: req.user?.id || 'system',
+      userName: req.user?.name || 'System',
+      userRole: req.user?.role || '',
+      action: 'CASE_UPDATE',
+      resource: 'Cases',
+      resourceId: caseDoc.caseId,
+      ipAddress: req.ip || 'unknown',
+      details: `Updated case ${caseDoc.caseId}.`
+    });
+
+    return res.json({ success: true, case: updatedCase, message: `Case ${caseDoc.caseId} updated.` });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Get cases created by the current user (for Citizen role)
+export const getMyCases = async (req: AuthRequest, res: Response) => {
+  if (!isMongoConnected) return dbUnavailable(res);
+  try {
+    const { page = 1, limit = 10 } = req.query;
+    const total = await Case.countDocuments({ createdBy: req.user?.id });
+    const cases = await Case.find({ createdBy: req.user?.id })
+      .sort({ createdAt: -1 })
+      .skip((Number(page) - 1) * Number(limit))
+      .limit(Number(limit))
+      .select('-faceEmbedding -activityLog')
+      .lean();
+
+    return res.json({ success: true, total, page: Number(page), limit: Number(limit), cases });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Get the face embedding for a case (for AI pipeline — restricted)
+export const getCaseEmbedding = async (req: AuthRequest, res: Response) => {
+  if (!isMongoConnected) return dbUnavailable(res);
+  try {
+    const { id } = req.params;
+    const filter = id.match(/^[0-9a-fA-F]{24}$/) ? { _id: id } : { caseId: id };
+    const caseDoc = await Case.findOne(filter).select('caseId name faceEmbedding faceQuality photos').lean();
+
+    if (!caseDoc) {
+      return res.status(404).json({ success: false, message: 'Case not found.' });
+    }
+
+    if (!(caseDoc as any).faceEmbedding || (caseDoc as any).faceEmbedding.length !== 512) {
+      return res.status(404).json({ success: false, message: 'No face embedding available for this case.' });
     }
 
     return res.json({
       success: true,
-      case: updatedCase,
-      message: `Case ${currentCase.caseId} updated successfully.`
+      caseId: caseDoc.caseId,
+      name: caseDoc.name,
+      embedding: (caseDoc as any).faceEmbedding,
+      quality: (caseDoc as any).faceQuality,
+      photoUrl: caseDoc.photos?.[0] || null
     });
   } catch (error: any) {
     return res.status(500).json({ success: false, message: error.message });
   }
 };
 
+// Get all case embeddings for AI matching pipeline (restricted to Investigators+)
+export const getAllEmbeddings = async (req: AuthRequest, res: Response) => {
+  if (!isMongoConnected) return dbUnavailable(res);
+  try {
+    const activeCases = await Case.find({
+      status: { $nin: ['Located', 'Closed'] },
+      faceEmbedding: { $exists: true, $not: { $size: 0 } }
+    }).select('caseId name faceEmbedding faceQuality photos').lean();
 
+    const registeredPersons = activeCases
+      .filter((c: any) => Array.isArray(c.faceEmbedding) && c.faceEmbedding.length === 512)
+      .map((c: any) => ({
+        case_id: c.caseId,
+        name: c.name,
+        embedding: c.faceEmbedding,
+        photo_url: c.photos?.[0] || null
+      }));
 
+    return res.json({ success: true, count: registeredPersons.length, registeredPersons });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};

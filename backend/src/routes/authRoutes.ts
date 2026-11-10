@@ -1,16 +1,29 @@
 import { Router } from 'express';
-import { login, register, getMe, logout, requestPasswordReset, devLogin } from '../controllers/authController';
-import { protect } from '../middleware/authMiddleware';
+import {
+  login, register, registerCitizen, getMe, logout,
+  requestPasswordReset, devLogin, listUsers, approveUser,
+  deactivateUser, updateProfile, changePassword
+} from '../controllers/authController';
+import { protect, restrictTo } from '../middleware/authMiddleware';
 
 const router = Router();
 
-router.post('/register', register);
+// Public routes
+router.post('/register', register); // Investigator access request (requires admin approval)
+router.post('/register-citizen', registerCitizen); // Citizen self-registration
 router.post('/login', login);
 router.post('/dev-login', devLogin);
 router.post('/password-reset', requestPasswordReset);
+
+// Protected routes
 router.get('/me', protect, getMe);
 router.post('/logout', logout);
+router.put('/profile', protect, updateProfile);
+router.put('/password', protect, changePassword);
+
+// Admin-only user management
+router.get('/users', protect, restrictTo('Admin'), listUsers);
+router.put('/users/:id/approve', protect, restrictTo('Admin'), approveUser);
+router.put('/users/:id/deactivate', protect, restrictTo('Admin'), deactivateUser);
 
 export default router;
-
-
