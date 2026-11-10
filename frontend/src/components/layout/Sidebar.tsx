@@ -1,6 +1,10 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Users, UserPlus, Video, GitCompare, Clock, MapPin, Bell, FileText, UserCheck, ShieldCheck, Settings, Globe, ChevronRight } from 'lucide-react';
+import {
+  LayoutDashboard, Users, UserPlus, Video, GitCompare, Clock,
+  MapPin, Bell, FileText, UserCheck, ShieldCheck, Settings, Globe,
+  ChevronRight, Camera
+} from 'lucide-react';
 import Logo from '../branding/Logo';
 import { useAuth } from '../../context/AuthContext';
 
@@ -11,14 +15,15 @@ const navigationGroups: Array<{
   { label: 'Overview', items: [{ name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard }] },
   { label: 'Casework', items: [
     { name: 'Missing Persons', path: '/cases', icon: Users },
-    { name: 'Register Person', path: '/cases/new', icon: UserPlus, roles: ['Admin', 'Investigator'] },
+    { name: 'Register Person', path: '/cases/new', icon: UserPlus, roles: ['Admin', 'Investigator', 'Citizen'] },
   ] },
-  { label: 'Review & follow-up', items: [
+  { label: 'AI Detection & Review', items: [
+    { name: 'Live Camera Feed', path: '/live-camera', icon: Camera },
+    { name: 'Video Ingestion & Analysis', path: '/video-analysis', icon: Video },
     { name: 'Potential Matches', path: '/matches', icon: GitCompare },
     { name: 'Investigation Timeline', path: '/timeline', icon: Clock },
     { name: 'Location Map', path: '/map', icon: MapPin },
     { name: 'Alerts', path: '/alerts', icon: Bell },
-    { name: 'Video Analysis Prototype', path: '/video-analysis', icon: Video },
   ] },
   { label: 'Records', items: [
     { name: 'Case Reports', path: '/reports', icon: FileText },
@@ -58,10 +63,10 @@ export const Sidebar: React.FC = () => {
                     {({ isActive }) => (
                       <>
                         <span className="flex items-center gap-3">
-                          <Icon aria-hidden="true" className={['h-4 w-4 shrink-0', isActive ? 'text-white' : 'text-slate-400 group-hover:text-[#356a5a]'].join(' ')} />
+                          <Icon size={17} className={isActive ? 'text-white' : 'text-slate-500 group-hover:text-slate-900'} />
                           <span className="hidden lg:inline">{item.name}</span>
                         </span>
-                        <ChevronRight aria-hidden="true" className={['hidden h-3.5 w-3.5 lg:block', isActive ? 'text-white' : 'text-slate-400 opacity-0 group-hover:opacity-100'].join(' ')} />
+                        <ChevronRight size={13} className="hidden opacity-0 transition-opacity group-hover:opacity-100 lg:inline" />
                       </>
                     )}
                   </NavLink>
@@ -71,18 +76,11 @@ export const Sidebar: React.FC = () => {
           );
         })}
       </nav>
-      <div className="border-t border-slate-100 bg-slate-50 p-3">
-        <div className="flex items-center justify-center gap-2 lg:justify-between">
-          <span className="flex items-center gap-2 text-xs font-medium text-slate-700" title={'Role: ' + activeRole}>
-            <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden="true" />
-            <span className="hidden lg:inline">Role: {activeRole}</span>
-          </span>
-          <span className="hidden rounded-md border border-cyan-200 bg-cyan-100 px-2 py-0.5 font-mono text-[10px] font-bold text-cyan-800 lg:inline-flex">SAMPLE DATA</span>
-        </div>
+      <div className="border-t border-slate-100 p-3 text-center text-[10px] text-slate-400">
+        <span className="hidden lg:inline">ReturnHome v1.0.0 • Production Core</span>
       </div>
     </aside>
   );
 };
 
 export default Sidebar;
-

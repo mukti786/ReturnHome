@@ -29,6 +29,7 @@ export interface CandidateMatchResult {
   cameraName: string;
   location: string;
   timestamp: string;
+  videoTimestamp?: string;
   similarityScore: number;
   confidenceTier: 'HIGH' | 'MEDIUM' | 'LOW';
   trackingId: string;

@@ -10,6 +10,7 @@ const MissingPersonsPage = lazy(() => import('./pages/MissingPersonsPage'));
 const RegisterMissingPersonPage = lazy(() => import('./pages/RegisterMissingPersonPage'));
 const CaseDetailsPage = lazy(() => import('./pages/CaseDetailsPage'));
 const EditCasePage = lazy(() => import('./pages/EditCasePage'));
+const LiveCameraPage = lazy(() => import('./pages/LiveCameraPage'));
 const VideoAnalysisPage = lazy(() => import('./pages/VideoAnalysisPage'));
 const PotentialMatchesPage = lazy(() => import('./pages/PotentialMatchesPage'));
 const InvestigationTimelinePage = lazy(() => import('./pages/InvestigationTimelinePage'));
@@ -27,7 +28,22 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   const location = useLocation();
   if (isLoading) return <div className="min-h-screen grid place-items-center bg-slate-950 text-slate-400" role="status">Checking your session…</div>;
   if (!isAuthenticated && import.meta.env.DEV && import.meta.env.VITE_DEV_AUTH_BYPASS === 'true') {
-    return <main className="grid min-h-screen place-items-center bg-slate-950 px-5 text-slate-100"><section className="max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-6"><h1 className="text-xl font-semibold">Local workspace unavailable</h1><p role="alert" className="mt-3 text-sm leading-6 text-slate-300">{authStartupError || 'The backend did not issue a local demo session.'}</p><p className="mt-3 text-xs leading-5 text-slate-400">Start both local services with `npm run dev:demo`, then refresh. This opens only the clearly marked, unverified local demo.</p><Link to="/" className="mt-5 inline-flex rounded-lg bg-teal-300 px-4 py-2.5 text-sm font-semibold text-slate-950">Return to home</Link></section></main>;
+    return (
+      <main className="grid min-h-screen place-items-center bg-slate-950 px-5 text-slate-100">
+        <section className="max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-6">
+          <h1 className="text-xl font-semibold">Local workspace unavailable</h1>
+          <p role="alert" className="mt-3 text-sm leading-6 text-slate-300">
+            {authStartupError || 'The backend did not issue a local demo session.'}
+          </p>
+          <p className="mt-3 text-xs leading-5 text-slate-400">
+            Start both local services with `npm run dev:demo`, then refresh.
+          </p>
+          <Link to="/" className="mt-5 inline-flex rounded-lg bg-teal-300 px-4 py-2.5 text-sm font-semibold text-slate-950">
+            Return to home
+          </Link>
+        </section>
+      </main>
+    );
   }
   if (!isAuthenticated) return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   return <>{children}</>;
@@ -56,6 +72,7 @@ const AppRoutes = () => (
       <Route path="/cases/new" element={<PrivatePage><RegisterMissingPersonPage /></PrivatePage>} />
       <Route path="/cases/:id" element={<PrivatePage><CaseDetailsPage /></PrivatePage>} />
       <Route path="/cases/:id/edit" element={<PrivatePage><EditCasePage /></PrivatePage>} />
+      <Route path="/live-camera" element={<PrivatePage><LiveCameraPage /></PrivatePage>} />
       <Route path="/video-analysis" element={<PrivatePage><VideoAnalysisPage /></PrivatePage>} />
       <Route path="/matches" element={<PrivatePage><PotentialMatchesPage /></PrivatePage>} />
       <Route path="/timeline" element={<PrivatePage><InvestigationTimelinePage /></PrivatePage>} />
@@ -71,7 +88,12 @@ const AppRoutes = () => (
   </Suspense>
 );
 
-export const App: React.FC = () => <AuthProvider><Router><AppRoutes /></Router></AuthProvider>;
+export const App: React.FC = () => (
+  <AuthProvider>
+    <Router>
+      <AppRoutes />
+    </Router>
+  </AuthProvider>
+);
+
 export default App;
-
-

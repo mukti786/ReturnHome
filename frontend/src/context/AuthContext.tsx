@@ -11,8 +11,10 @@ interface AuthContextType {
   isDemoMode: boolean;
   authStartupError: string;
   login: (email: string, pass: string) => Promise<boolean>;
+  loginGoogle: (credential: string, role?: string, organization?: string) => Promise<string | void>;
   loginDemo: () => Promise<void>;
-  register: (user: { name: string; email: string; organization: string; password: string }) => Promise<string>;
+  register: (user: { name: string; email: string; organization?: string; password: string; phone?: string }) => Promise<string>;
+  registerCitizen: (user: { name: string; email: string; password: string; phone?: string }) => Promise<string>;
   logout: () => Promise<void>;
   switchRole: (role: UserRole) => void;
   setDemoMode: (active: boolean) => void;
@@ -68,6 +70,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const loginGoogle = async (credential: string, role: string = 'Citizen', organization?: string) => {
+    setIsLoading(true);
+    try {
+      const result = await apiService.googleAuth(credential, role, organization);
+      if (result.user.status === 'Active') {
+        setUser(result.user);
+        setIsDemoMode(false);
+        setAuthStartupError('');
+      }
+      return result.message;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const loginDemo = async () => {
     setIsLoading(true);
     try {
@@ -79,8 +96,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const register = async (input: { name: string; email: string; organization: string; password: string }) => {
+  const register = async (input: { name: string; email: string; organization?: string; password: string; phone?: string }) => {
     const result = await apiService.register(input);
+    return result.message;
+  };
+
+  const registerCitizen = async (input: { name: string; email: string; password: string; phone?: string }) => {
+    const result = await apiService.registerCitizen(input);
     return result.message;
   };
 
@@ -91,7 +113,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const switchRole = (_role: UserRole) => {
-    // The authenticated role comes from the server and cannot be changed in the browser.
+    // Authenticated role comes strictly from server session
   };
 
   return (
@@ -104,8 +126,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       isDemoMode,
       authStartupError,
       login,
+      loginGoogle,
       loginDemo,
       register,
+      registerCitizen,
       logout,
       switchRole,
       setDemoMode: setIsDemoMode
@@ -121,5 +145,4 @@ export const useAuth = () => {
   return context;
 };
 
-
-
+export default AuthContext;

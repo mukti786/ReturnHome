@@ -7,7 +7,8 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
-    "seed": "ts-node src/seed.ts"
+    "seed": "ts-node src/seed.ts",
+    "test": "jest --runInBand --detectOpenHandles --forceExit"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

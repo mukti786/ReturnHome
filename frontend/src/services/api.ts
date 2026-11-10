@@ -1,7 +1,11 @@
-import { User, MissingPersonCase, CandidateMatch, TimelineEvent, AuditLogItem, DashboardStats, PublicReportItem } from '../types';
+import {
+  User, MissingPersonCase, CandidateMatch, TimelineEvent,
+  AuditLogItem, DashboardStats, PublicReportItem, VideoJob,
+  DetectionEvent, CameraFeed
+} from '../types';
 
 const API_BASE_URL = '/api';
-const API_TIMEOUT_MS = 8000;
+const API_TIMEOUT_MS = 25000;
 
 async function fetchAPI<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const headers: Record<string, string> = {
@@ -22,10 +26,10 @@ async function fetchAPI<T>(endpoint: string, options: RequestInit = {}): Promise
     });
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') {
-      throw new Error('The ReturnHome API took too long to respond. Check the backend and database, or start the local sample workspace with “npm run dev:demo”.');
+      throw new Error('The ReturnHome API took too long to respond. Check backend server and network.');
     }
     if (error instanceof TypeError) {
-      throw new Error('Cannot reach the ReturnHome API. Start the backend with “npm --prefix backend run dev”, or use “npm run dev:demo” to start the local demonstration.');
+      throw new Error('Cannot reach the ReturnHome API. Ensure backend is running.');
     }
     throw error;
   } finally {
@@ -36,24 +40,25 @@ async function fetchAPI<T>(endpoint: string, options: RequestInit = {}): Promise
   const responseText = await response.text();
   let data: any = null;
   if (contentType.includes('application/json')) {
-    try { data = JSON.parse(responseText); } catch { /* Report a useful protocol error below. */ }
+    try { data = JSON.parse(responseText); } catch { /* Report error below */ }
   }
   if (!response.ok) {
     if (typeof data?.message === 'string' && data.message.trim()) throw new Error(data.message);
     const proxyFailure = response.status === 502 || response.status === 504 || /proxy error|econnrefused|connect etimedout/i.test(responseText);
     if (proxyFailure) {
-      throw new Error(`The ReturnHome API could not be reached for ${endpoint} (HTTP ${response.status}). Start the backend with “npm --prefix backend run dev”, or use “npm run dev:demo” to start the local demonstration.`);
+      throw new Error(`The ReturnHome API could not be reached for ${endpoint} (HTTP ${response.status}).`);
     }
-    if (!data && response.status >= 500) throw new Error(`The ReturnHome API returned a non-JSON server error (HTTP ${response.status}) for ${endpoint}. Check the backend terminal output and confirm it is running with the expected environment.`);
-    throw new Error(`The ReturnHome API returned HTTP ${response.status} for ${endpoint} without a JSON error message. Check that the backend route is available.`);
+    if (!data && response.status >= 500) throw new Error(`The ReturnHome API returned a non-JSON server error (HTTP ${response.status}) for ${endpoint}.`);
+    throw new Error(`The ReturnHome API returned HTTP ${response.status} for ${endpoint}.`);
   }
   if (!data || typeof data !== 'object') {
-    throw new Error(`The ReturnHome API returned an unreadable response for ${endpoint}. Check that the backend is running and returning JSON.`);
+    throw new Error(`The ReturnHome API returned an unreadable response for ${endpoint}.`);
   }
   return data as T;
 }
 
 export const apiService = {
+  // Authentication
   async login(email: string, password: string) {
     return fetchAPI<{ success: boolean; user: User }>('/auth/login', {
       method: 'POST',
@@ -65,18 +70,22 @@ export const apiService = {
     return fetchAPI<{ success: boolean; user: User }>('/auth/dev-login', { method: 'POST' });
   },
 
-  async createPublicReport(formData: FormData) {
-    return fetchAPI<{ success: boolean; report: { referenceId: string; status: string }; message: string }>('/public-reports', {
-      method: 'POST', body: formData
+  async googleAuth(credential: string, role: string = 'Citizen', organization?: string) {
+    return fetchAPI<{ success: boolean; user: User; message?: string }>('/auth/google', {
+      method: 'POST',
+      body: JSON.stringify({ credential, role, organization }),
     });
   },
 
-  async getPublicReports() {
-    return fetchAPI<{ success: boolean; total: number; reports: PublicReportItem[] }>('/public-reports');
+  async register(userData: { name: string; email: string; password: string; organization?: string; phone?: string }) {
+    return fetchAPI<{ success: boolean; user: User; message: string }>('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(userData),
+    });
   },
 
-  async register(userData: { name: string; email: string; password: string; organization: string }) {
-    return fetchAPI<{ success: boolean; user: User; message: string }>('/auth/register', {
+  async registerCitizen(userData: { name: string; email: string; password: string; phone?: string }) {
+    return fetchAPI<{ success: boolean; user: User; message: string }>('/auth/register-citizen', {
       method: 'POST',
       body: JSON.stringify(userData),
     });
@@ -97,38 +106,176 @@ export const apiService = {
     });
   },
 
+  // User Management (Admin)
+  async getUsers(params: Record<string, string> = {}) {
+    const query = new URLSearchParams(params).toString();
+    return fetchAPI<{ success: boolean; total: number; page: number; limit: number; users: User[] }>(`/auth/users?${query}`);
+  },
+
+  async approveUser(userId: string, role?: string) {
+    return fetchAPI<{ success: boolean; user: User; message: string }>(`/auth/users/${userId}/approve`, {
+      method: 'PUT',
+      body: JSON.stringify({ role })
+    });
+  },
+
+  async rejectUser(userId: string, reason?: string) {
+    return fetchAPI<{ success: boolean; message: string }>(`/auth/users/${userId}/reject`, {
+      method: 'PUT',
+      body: JSON.stringify({ reason })
+    });
+  },
+
+  async deactivateUser(userId: string) {
+    return fetchAPI<{ success: boolean; message: string }>(`/auth/users/${userId}/deactivate`, {
+      method: 'PUT'
+    });
+  },
+
+  // Public Report Intake
+  async createPublicReport(formData: FormData) {
+    return fetchAPI<{ success: boolean; report: { referenceId: string; status: string }; message: string }>('/public-reports', {
+      method: 'POST',
+      body: formData
+    });
+  },
+
+  async getPublicReports() {
+    return fetchAPI<{ success: boolean; total: number; reports: PublicReportItem[] }>('/public-reports');
+  },
+
+  // Case Management
   async getCases(params: Record<string, string> = {}) {
     const query = new URLSearchParams(params).toString();
     return fetchAPI<{ success: boolean; total: number; cases: MissingPersonCase[] }>(`/cases?${query}`);
   },
+
+  async getMyCases(params: Record<string, string> = {}) {
+    const query = new URLSearchParams(params).toString();
+    return fetchAPI<{ success: boolean; total: number; cases: MissingPersonCase[] }>(`/cases/my?${query}`);
+  },
+
   async getCaseById(id: string) {
-    return fetchAPI<{ success: boolean; case: MissingPersonCase; matches: CandidateMatch[]; timeline: TimelineEvent[] }>(`/cases/${id}`);
+    return fetchAPI<{ success: boolean; case: MissingPersonCase; matches?: CandidateMatch[]; detections?: DetectionEvent[]; timeline?: TimelineEvent[]; activityLog?: any[] }>(`/cases/${id}`);
   },
+
   async createCase(caseData: Partial<MissingPersonCase>) {
-    return fetchAPI<{ success: boolean; case: MissingPersonCase; message: string }>('/cases', { method: 'POST', body: JSON.stringify(caseData) });
+    return fetchAPI<{ success: boolean; case: MissingPersonCase; message: string }>('/cases', {
+      method: 'POST',
+      body: JSON.stringify(caseData)
+    });
   },
+
   async updateCase(id: string, updates: Partial<MissingPersonCase>) {
-    return fetchAPI<{ success: boolean; case: MissingPersonCase; message: string }>(`/cases/${id}`, { method: 'PUT', body: JSON.stringify(updates) });
+    return fetchAPI<{ success: boolean; case: MissingPersonCase; message: string }>(`/cases/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates)
+    });
   },
+
+  async checkDuplicateCase(data: { name: string; age?: number; gender?: string; lastSeenLocation?: string }) {
+    return fetchAPI<{ success: boolean; hasPotentialDuplicates: boolean; count: number; potentialDuplicates: Partial<MissingPersonCase>[] }>('/cases/check-duplicate', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  },
+
+  async uploadCasePhoto(formData: FormData) {
+    return fetchAPI<{ success: boolean; photoUrl: string; quality?: any; confidence?: number; message: string }>('/cases/upload-photo', {
+      method: 'POST',
+      body: formData
+    });
+  },
+
+  // Video Investigation & Processing
+  async uploadVideo(formData: FormData) {
+    return fetchAPI<{ success: boolean; jobId: string; status: string; message: string }>('/videos/upload', {
+      method: 'POST',
+      body: formData
+    });
+  },
+
+  async getVideoJobs(params: Record<string, string> = {}) {
+    const query = new URLSearchParams(params).toString();
+    return fetchAPI<{ success: boolean; total: number; jobs: VideoJob[] }>(`/videos?${query}`);
+  },
+
+  async getVideoJobById(id: string) {
+    return fetchAPI<{ success: boolean; job: VideoJob; detections: DetectionEvent[] }>(`/videos/${id}`);
+  },
+
+  // Live Camera Detection & Ingestion
+  async processLiveFrame(formData: FormData) {
+    return fetchAPI<{
+      success: boolean;
+      facesDetected: number;
+      matchesFound: number;
+      candidateMatches: any[];
+      disclaimer: string;
+    }>('/detections/live-frame', {
+      method: 'POST',
+      body: formData
+    });
+  },
+
+  // Camera Management
+  async getCameras() {
+    return fetchAPI<{ success: boolean; total: number; cameras: CameraFeed[] }>('/cameras');
+  },
+
+  async createCamera(cameraData: Partial<CameraFeed>) {
+    return fetchAPI<{ success: boolean; camera: CameraFeed }>('/cameras', {
+      method: 'POST',
+      body: JSON.stringify(cameraData)
+    });
+  },
+
+  async updateCamera(id: string, cameraData: Partial<CameraFeed>) {
+    return fetchAPI<{ success: boolean; camera: CameraFeed }>(`/cameras/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(cameraData)
+    });
+  },
+
+  // Candidate Matches & Detections Review
   async getMatches(params: Record<string, string> = {}) {
     const query = new URLSearchParams(params).toString();
     return fetchAPI<{ success: boolean; total: number; matches: CandidateMatch[] }>(`/matches?${query}`);
   },
+
   async reviewMatch(matchId: string, status: string, notes: string) {
-    return fetchAPI<{ success: boolean; match: CandidateMatch; message: string }>(`/matches/${matchId}/review`, { method: 'PUT', body: JSON.stringify({ status, notes }) });
-  },
-  async analyzeVideo(caseId: string, cameraId: string, videoName: string) {
-    return fetchAPI<{ success: boolean; framesAnalyzed: number; facesDetected: number; tracksCreated: number; potentialMatches: CandidateMatch[] }>('/videos/analyze', {
-      method: 'POST',
-      body: JSON.stringify({ caseId, cameraId, videoName }),
+    return fetchAPI<{ success: boolean; match: CandidateMatch; message: string }>(`/matches/${matchId}/review`, {
+      method: 'PUT',
+      body: JSON.stringify({ status, notes })
     });
   },
-  async getDashboardStats() {
-    return fetchAPI<{ success: boolean; stats: DashboardStats; recentCases: MissingPersonCase[]; recentMatches: CandidateMatch[]; recentTimeline: TimelineEvent[]; charts: any }>('/dashboard/stats');
+
+  async getDetections(params: Record<string, string> = {}) {
+    const query = new URLSearchParams(params).toString();
+    return fetchAPI<{ success: boolean; total: number; detections: DetectionEvent[] }>(`/detections?${query}`);
   },
+
+  async reviewDetection(detectionId: string, reviewStatus: string, notes: string) {
+    return fetchAPI<{ success: boolean; detection: DetectionEvent; message: string }>(`/detections/${detectionId}/review`, {
+      method: 'PUT',
+      body: JSON.stringify({ reviewStatus, notes })
+    });
+  },
+
+  // Dashboard & Audit
+  async getDashboardStats() {
+    return fetchAPI<{
+      success: boolean;
+      stats: DashboardStats;
+      recentCases: MissingPersonCase[];
+      recentMatches: CandidateMatch[];
+      recentTimeline: TimelineEvent[];
+      charts: any;
+    }>('/dashboard/stats');
+  },
+
   async getAuditLogs(params: Record<string, string> = {}) {
     const query = new URLSearchParams(params).toString();
     return fetchAPI<{ success: boolean; total: number; logs: AuditLogItem[] }>(`/audit?${query}`);
   }
 };
-

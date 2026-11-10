@@ -458,3 +458,42 @@ export const getAllEmbeddings = async (req: AuthRequest, res: Response) => {
     return res.status(500).json({ success: false, message: error.message });
   }
 };
+
+// Duplicate case detection
+export const checkDuplicateCase = async (req: AuthRequest, res: Response) => {
+  if (!isMongoConnected) return dbUnavailable(res);
+  try {
+    const { name, age, gender, lastSeenLocation } = req.body;
+    if (!name || typeof name !== 'string') {
+      return res.status(400).json({ success: false, message: 'Name is required to check for duplicates.' });
+    }
+
+    const trimmedName = name.trim();
+    const query: any = {
+      status: { $nin: ['Closed', 'Located'] },
+      $or: [
+        { name: { $regex: trimmedName, $options: 'i' } }
+      ]
+    };
+
+    if (gender && gender !== 'Not Specified') {
+      query.gender = gender;
+    }
+
+    if (age !== undefined && age !== '' && Number.isInteger(Number(age))) {
+      const numAge = Number(age);
+      query.age = { $gte: Math.max(0, numAge - 3), $lte: numAge + 3 };
+    }
+
+    const matches = await Case.find(query).select('caseId name age gender lastSeenDate lastSeenLocation status photos').limit(5).lean();
+
+    return res.json({
+      success: true,
+      hasPotentialDuplicates: matches.length > 0,
+      count: matches.length,
+      potentialDuplicates: matches
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};

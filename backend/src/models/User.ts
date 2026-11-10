@@ -6,7 +6,8 @@ export type UserStatus = 'Active' | 'Inactive' | 'Pending';
 export interface IUser extends Document {
   name: string;
   email: string;
-  passwordHash: string;
+  passwordHash?: string;
+  googleId?: string;
   role: UserRole;
   organization: string;
   phone?: string;
@@ -35,7 +36,8 @@ const UserSchema: Schema = new Schema(
       maxlength: 254,
       index: true
     },
-    passwordHash: { type: String, required: true, select: false },
+    passwordHash: { type: String, select: false },
+    googleId: { type: String, sparse: true, index: true },
     role: {
       type: String,
       enum: ['Admin', 'Investigator', 'Analyst', 'Viewer', 'Citizen'],

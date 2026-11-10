@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import {
   getCases, getCaseById, createCase, updateCase,
-  uploadCasePhotoHandler, getMyCases, getCaseEmbedding, getAllEmbeddings
+  uploadCasePhotoHandler, getMyCases, getCaseEmbedding, getAllEmbeddings,
+  checkDuplicateCase
 } from '../controllers/caseController';
 import { protect, restrictTo } from '../middleware/authMiddleware';
 import { uploadCasePhoto } from '../middleware/uploadMiddleware';
@@ -13,6 +14,7 @@ router.use(protect);
 router.get('/', getCases);
 router.get('/my', getMyCases);
 router.get('/embeddings', restrictTo('Admin', 'Investigator', 'Analyst'), getAllEmbeddings);
+router.post('/check-duplicate', checkDuplicateCase);
 router.get('/:id', getCaseById);
 router.get('/:id/embedding', restrictTo('Admin', 'Investigator', 'Analyst'), getCaseEmbedding);
 
