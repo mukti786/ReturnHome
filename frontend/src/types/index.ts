@@ -212,3 +212,68 @@ export interface AuditLogItem {
 export interface DashboardStats {
   [key: string]: number;
 }
+
+export interface SightingItem {
+  _id?: string;
+  sightingId: string;
+  caseId: string | { _id: string; caseId: string; name: string; status: string; photos?: string[]; priority?: string; lastSeenLocation?: string };
+  caseRef: string;
+  reportedBy: string;
+  reporterName: string;
+  reporterEmail?: string;
+  reporterPhone?: string;
+  photoUrl?: string;
+  dateTimeSeen: string;
+  location: string;
+  latitude?: number;
+  longitude?: number;
+  locationSource: 'citizen_gps' | 'manual_entry';
+  notes: string;
+  clothingSeen?: string;
+  status: 'Pending Review' | 'Verified' | 'Rejected';
+  reviewNotes?: string;
+  reviewedByName?: string;
+  reviewedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface NotificationItem {
+  _id?: string;
+  notificationId: string;
+  recipient?: string;
+  recipientRole?: string;
+  title: string;
+  message: string;
+  type: 'case_status' | 'sighting_received' | 'sighting_reviewed' | 'detection_match' | 'system';
+  caseRef?: string;
+  link?: string;
+  read: boolean;
+  createdAt: string;
+}
+
+export interface UnifiedEvidenceItem {
+  id: string;
+  evidenceType: 'detection_frame' | 'sighting_photo' | 'reference_photo';
+  caseRef?: string;
+  missingPersonName?: string;
+  source: string;
+  sourceLabel: string;
+  imageUrl: string;
+  timestamp: string;
+  location?: string;
+  latitude?: number;
+  longitude?: number;
+  locationSource?: string;
+  confidence?: number;
+  confidenceTier?: ConfidenceTier;
+  boundingBox?: { x: number; y: number; width: number; height: number };
+  frameOffset?: number;
+  frameTimestamp?: string;
+  reviewStatus: string;
+  reviewedByName?: string;
+  reviewedAt?: string;
+  notes?: string;
+  cameraId?: string;
+  cameraName?: string;
+}

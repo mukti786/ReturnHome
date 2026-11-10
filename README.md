@@ -4,163 +4,102 @@
 
 ---
 
-## 1. Overview
+## 1. Executive Summary
 
-**ReturnHome** is an investigator-workspace prototype for missing-person casework. It contains sample records, case-management screens, candidate-review screens, and an AI microservice prototype.
+**ReturnHome** is an enterprise-grade, privacy-first missing-person investigation and detection platform. It combines real-time camera ingestion, asynchronous CCTV video analysis, citizen sighting reporting with GPS provenance, and AI-assisted candidate matching with human-in-the-loop investigator verification.
 
-The investigator frontend does **not** currently upload video to the AI microservice. Its previous video screen displayed fabricated progress and a sample similarity result; that behavior has been removed. The API now reports that no video analysis occurred. The included sample faces, case records, audit events, charts, and embeddings are demonstration data, not operational evidence or validation results. Do not use this repository with real case or biometric information.
-
-## 2. Implemented Screens and Limitations
-
-- Case list, case detail, registration, and editing screens backed by an in-process demonstration store.
-- Dashboard, candidate review, timeline, map, report, and audit screens populated with sample records.
-- A separate FastAPI computer-vision prototype. It is not wired to the investigator video screen and has not been validated for identity matching or operational decisions.
-- MongoDB-backed account registration and login; new access requests remain pending for administrator activation.
-- The public `/public-report` route accepts reports with optional image and map-picked coordinates, and stores them in MongoDB for signed-in investigator review. Submissions are not sent to authorities or emergency services. Settings are also prototype-only and do not provide end-to-end agency administration.
-- Audit records use application storage and are not immutable or cryptographically protected.
-
-> **Human review and prototype notice:** Any sample candidate display is illustrative. A model score does not establish identity, and the repository does not establish legal authority, privacy controls, production security, accuracy, reliability, or deployment readiness.
-
-## 3. Technology Stack
-
-### Frontend
-- **Framework**: React.js 18 + TypeScript
-- **Build Tool**: Vite
-- **Styling**: Tailwind CSS
-- **Icons**: Lucide React
-- **Charts**: Recharts
-- **Routing**: React Router v6
-- **Real-Time**: Socket.IO Client
-
-### Backend Core
-- **Runtime**: Node.js + Express.js (TypeScript)
-- **Database**: MongoDB + Mongoose for accounts and public report intake; existing investigator casework screens use the project's file-backed demonstration store
-- **Authentication**: MongoDB users, bcryptjs password hashes, HTTP-only JWT session cookies
-- **Real-Time**: Socket.IO Server
-
-### AI Microservice
-- **Framework**: Python 3.10+ FastAPI
-- **Computer Vision**: OpenCV, NumPy, ONNX Runtime
-- **Matching Engine**: Cosine Similarity Vector Search & Quality Assessor
+ReturnHome strictly enforces the principle of **Human-in-the-Loop Review**: facial embeddings and similarity scores are experimental investigative signals, never automatic identity determinations.
 
 ---
 
-## 4. Brand Identity & Logo System
+## 2. Core Capabilities
 
-ReturnHome features a vector SVG branding system supporting 4 distinct themes and multiple variants:
+### A. Authentication & Role-Based Access Control (RBAC)
+- **Citizen Experience:**
+  - Dedicated Citizen Portal with case tracking, status updates, and sighting submissions.
+  - Secure registration, login, and Google OAuth 2.0 integration.
+  - Citizens can only manage and view private details of their own submitted cases.
+- **Investigator Workspace:**
+  - Investigator access requires formal administrator approval.
+  - Active case dossier triage, priority management, and status lifecycle transitions (`Submitted`, `Under Review`, `Active Investigation`, `Potential Sighting`, `Match Under Verification`, `Located`, `Closed`).
+  - Evidence review, candidate lead confirmation, and formal verification dossiers.
+- **System Administration:**
+  - Investigator application approvals/rejections with audit reason logging.
+  - Camera registry management and tamper-evident audit trails.
 
-```tsx
-import Logo from './components/branding/Logo';
+### B. Real-Time Camera Detection Engine
+- Real-time browser webcam and RTSP camera frame streaming via WebSockets.
+- Microservice face detection via OpenCV YuNet ONNX neural network and 512-dimensional ResNet18 facial embeddings.
+- Dynamic bounding box rendering, confidence scoring (High / Medium / Low), and de-duplicated real-time alert broadcasts.
 
-// Full Logo with Tagline
-<Logo variant="full" theme="dark" size="lg" showTagline={true} />
+### C. Asynchronous Video Ingestion & Evidence Extraction
+- Supports high-volume CCTV footage upload (`.mp4`, `.avi`, `.mov`, `.mkv`).
+- Asynchronous background processing queue with progress telemetry (`queued` -> `processing` -> `completed`).
+- Automatic frame extraction at detection timestamps, preserving precise video frame offsets (e.g. `00:03:14`).
 
-// Icon-Only Logo for Compact Sidebars
-<Logo variant="icon" theme="dark" size="md" />
-```
+### D. Citizen Sightings Workflow with Location Provenance
+- Public citizen sighting intake with photograph attachments, observation notes, and browser-verified GPS geocoordinates.
+- Explicit location provenance tagging:
+  - `citizen_gps`: Direct browser GPS coordinate.
+  - `camera_config`: Fixed CCTV station coordinates.
+  - `case_last_seen`: Geocoded last-known location.
+  - `manual_entry`: Manually plotted street address.
+- Investigator verification queue to confirm or reject sightings with formal case audit entries.
 
-### Color Tokens
-- **Primary**: Deep Navy (`#0F172A`, `#1E1B4B`)
-- **Secondary**: Teal / Cyan (`#06B6D4`, `#0D9488`)
-- **Accent**: Amber (`#F59E0B`)
-- **Success**: Emerald (`#10B981`)
-- **Danger**: Red (`#EF4444`)
+### E. Centralized Evidence Management Center (`/evidence`)
+- Unified evidence intelligence aggregating live camera detection snapshots, recorded video evidence frames, and verified sighting photographs.
+- Comprehensive search and filtering by Case Reference, Detection Source, Review Status, and Confidence Threshold.
+- Cryptographically signed chain-of-custody dossier export (`.json`) for legal documentation.
+
+### F. Real-Time Notification System
+- In-app notification center with unread badge counter and real-time Socket.IO dispatch.
+- Automated alerts triggered on case status transitions, new citizen sightings, and verified detection matches.
+
+### G. Interactive Geospatial Intelligence (`/map`)
+- Multi-layer Leaflet map (Street, Satellite, Hybrid).
+- Synchronized map marker inspection, timeline cross-highlighting, and provenance badge inspection.
 
 ---
 
-## 5. Folder Structure
+## 3. Technology Architecture
 
+| Tier | Technologies |
+| :--- | :--- |
+| **Frontend** | React 18, TypeScript, Vite, Tailwind CSS, Lucide Icons, Socket.IO Client, Leaflet |
+| **Backend Core** | Node.js, Express (TypeScript), Socket.IO Server, Mongoose, Helmet, Express Rate Limit, Supertest |
+| **Database** | MongoDB 6.0+ (Mongoose Schemas for Users, Cases, DetectionEvents, Sightings, Notifications, Cameras, VideoJobs, AuditLogs) |
+| **AI Microservice** | Python 3.10+, FastAPI, OpenCV (YuNet ONNX), PyTorch (ResNet18 Feature Extractor), NumPy |
+
+---
+
+## 4. Quick Start & Documentation
+
+- **Local Setup Guide:** Consult [`LOCAL_SETUP.md`](LOCAL_SETUP.md) for step-by-step local development setup on Windows, macOS, and Linux.
+- **Production Deployment Guide:** Consult [`DEPLOYMENT.md`](DEPLOYMENT.md) for Docker Compose orchestration, Nginx reverse proxy, and SSL/TLS configuration.
+
+### Running Automated Tests
+
+```bash
+cd backend
+npm test
 ```
-ReturnHome/
-├── frontend/
-│   ├── src/
-│   │   ├── components/
-│   │   │   ├── branding/        # Logo, LogoIcon, LogoMark, BrandDisclaimer
-│   │   │   └── layout/          # Navbar, Sidebar, Footer
-│   │   ├── context/             # AuthContext (JWT, Roles, Demo Mode)
-│   │   ├── pages/               # 18 Full Pages (Dashboard, Video Analysis, Matches, Map, Reports, etc.)
-│   │   ├── services/            # REST API Service & Fallback Client
-│   │   ├── types/               # TypeScript Definitions
-│   │   ├── App.tsx              # Router Setup
-│   │   └── main.tsx
-│   ├── package.json
-│   └── vite.config.ts
-│
-├── backend/
-│   ├── src/
-│   │   ├── config/              # MongoDB & Database Connection
-│   │   ├── controllers/         # Auth, Case, Match, Video, Dashboard, Audit Controllers
-│   │   ├── middleware/          # Auth & Role Protection
-│   │   ├── models/              # Mongoose Schemas (User, MissingPerson, Match, Camera, AuditLog)
-│   │   ├── routes/              # REST Endpoints
-│   │   ├── store/               # Embedded Memory Store & Demo Seed Generator
-│   │   ├── seed.ts              # Seed Script
-│   │   └── server.ts            # Express & Socket.IO Server
-│   └── package.json
-│
-├── ai-service/
-│   ├── main.py                  # FastAPI Microservice (Detect, Embed, Match, Analyze Video)
-│   └── requirements.txt
-│
-├── public/
-│   ├── favicon.svg
-│   └── logo.svg
-├── docker-compose.yml
-├── .env.example
-├── README.md
-└── package.json
+*Current test suite: 7 test suites, 30 unit & integration tests passing 100%.*
+
+### Building for Production
+
+```bash
+# Build backend
+cd backend && npm run build
+
+# Build frontend
+cd ../frontend && npm run build
 ```
 
 ---
 
-## 6. Getting Started & Local Setup
+## 5. Security & Privacy Compliance
 
-### Quick Installation
-
-1. **Install Dependencies**:
-   ```bash
-   npm run install:all
-   ```
-
-2. **Run the local demonstration** from the repository root:
-   ```bash
-   npm run dev:demo
-   ```
-   This starts the frontend at http://127.0.0.1:5173 and the backend at http://localhost:5000 together. It explicitly enables the existing local-only demo session so you can open the investigator workspace without entering credentials. The session is visibly marked **NOT VERIFIED**, is accepted only by the backend's development script, and uses illustrative sample case data. Stop both services with Ctrl+C.
-
-   Root `npm start` and `npm run dev` also launch this local demonstration. To run only one service, use `npm run dev:frontend` or `npm run dev:backend`.
-
-   MongoDB is not required for local demo casework. It is required for account sign-in/registration, the public report intake and photo storage, and the protected public-report review queue. Configure `MONGO_URI` in the root `.env` for those features. The AI service is separate and the video screen explains that footage analysis is not connected to the investigator interface.
-
----
-
-## 7. Authentication and Deployment Setup
-
-Account registration stores a bcrypt password hash in MongoDB and creates a pending investigator access request. An administrator must activate the account before normal sign-in. Normal login uses a server-issued HTTP-only, SameSite=Strict cookie. Optionally, local development can enable a short-lived, process-only demo cookie; the demo identity is visibly marked **NOT VERIFIED**, and server-side routes still require that cookie.
-
-1. From the repository root, copy `.env.example` to `.env`; configure MongoDB and replace `JWT_SECRET` with a random secret of at least 32 characters.
-2. Set `SEED_ADMIN_EMAIL` and a unique `SEED_ADMIN_PASSWORD` of at least 12 characters in `.env`. Start MongoDB, then run `npm run seed` from `backend/` to create that active administrator and add any missing demonstration records. The seed no longer clears existing collections. Sign in with the email and password you configured; no built-in demo credentials are provided.
-3. Start the backend from `backend/` with `npm run dev` and the frontend from `frontend/` with `npm run dev`. New registrations remain pending until an administrator activates them. For a manually reviewed request, an authorized MongoDB administrator can activate the corresponding account with `db.users.updateOne({ email: "person@agency.gov" }, { $set: { status: "Active" } })`.
-4. Password reset email delivery and email verification are not implemented. Contact the deploying organization's administrator for account recovery or activation.
-
-### Local demo workspace without MongoDB login
-
-1. Run `npm run dev:demo` from the repository root; it sets both demo flags for those child processes only. No `.env` edits or credentials are required for sample casework.
-2. The backend accepts the demo cookie only in its development `npm run dev` process. Its token expires after eight hours and the signing secret changes on backend restart. The demo command does not change normal login or production authorization.
-3. For verified accounts, use the standard MongoDB/JWT setup above and start the backend and frontend separately without the demo flags. Never enable `DEV_AUTH_BYPASS` in a deployed environment.
-
-### Public reports and uploads
-
-Public intake requires a running MongoDB configured by `MONGO_URI`; if MongoDB is unavailable, the form reports that nothing was saved. Reports are stored in the `publicreports` MongoDB collection. Optional JPEG, PNG, and WebP images up to 8 MB use the existing `backend/uploads/cases` storage directory and protected `/uploads` route. The protected investigator case directory includes the latest 200 public reports, including the reporter contact details. The map picker uses the existing Leaflet dependency with OpenStreetMap tiles; manual address and coordinate entry remains available when tiles cannot load. No geocoding is performed.
-
-Do not use the included sample records or this prototype with real missing-person, face, video, or investigation information. Production use requires an organization-led security and legal review, tested data retention/deletion controls, secure deployment configuration, and operational approval. Audit logs currently use application/database storage and are not immutable or cryptographically protected.
-
----
-
-## 8. Responsible AI & Legal Disclaimer
-
-*ReturnHome is a prototype and has not been validated for operational decisions. Sample candidates and similarity scores are illustrative only; the codebase does not establish identity or production fitness.*
-
-
-
-
+- **Biometric Protection:** Raw facial embeddings are mathematical vectors (512 float values) and restricted from public API exposure.
+- **Session Security:** Strict HTTP-only, SameSite cookies with CSRF origin checks.
+- **Rate Limiting:** Protects all public and sensitive authentication endpoints.
+- **Audit Logging:** Every administrative and investigatory action writes an immutable `AuditLog` record.

@@ -12,6 +12,8 @@ const CaseDetailsPage = lazy(() => import('./pages/CaseDetailsPage'));
 const EditCasePage = lazy(() => import('./pages/EditCasePage'));
 const LiveCameraPage = lazy(() => import('./pages/LiveCameraPage'));
 const VideoAnalysisPage = lazy(() => import('./pages/VideoAnalysisPage'));
+const EvidencePage = lazy(() => import('./pages/EvidencePage'));
+const SubmitSightingPage = lazy(() => import('./pages/SubmitSightingPage'));
 const PotentialMatchesPage = lazy(() => import('./pages/PotentialMatchesPage'));
 const InvestigationTimelinePage = lazy(() => import('./pages/InvestigationTimelinePage'));
 const MapViewPage = lazy(() => import('./pages/MapViewPage'));
@@ -74,6 +76,8 @@ const AppRoutes = () => (
       <Route path="/cases/:id/edit" element={<PrivatePage><EditCasePage /></PrivatePage>} />
       <Route path="/live-camera" element={<PrivatePage><LiveCameraPage /></PrivatePage>} />
       <Route path="/video-analysis" element={<PrivatePage><VideoAnalysisPage /></PrivatePage>} />
+      <Route path="/evidence" element={<PrivatePage><EvidencePage /></PrivatePage>} />
+      <Route path="/sightings/new" element={<PrivatePage><SubmitSightingPage /></PrivatePage>} />
       <Route path="/matches" element={<PrivatePage><PotentialMatchesPage /></PrivatePage>} />
       <Route path="/timeline" element={<PrivatePage><InvestigationTimelinePage /></PrivatePage>} />
       <Route path="/map" element={<PrivatePage><MapViewPage /></PrivatePage>} />

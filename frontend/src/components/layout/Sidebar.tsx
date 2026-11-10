@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, Users, UserPlus, Video, GitCompare, Clock,
   MapPin, Bell, FileText, UserCheck, ShieldCheck, Settings, Globe,
-  ChevronRight, Camera
+  ChevronRight, Camera, Eye, FolderKanban
 } from 'lucide-react';
 import Logo from '../branding/Logo';
 import { useAuth } from '../../context/AuthContext';
@@ -16,10 +16,12 @@ const navigationGroups: Array<{
   { label: 'Casework', items: [
     { name: 'Missing Persons', path: '/cases', icon: Users },
     { name: 'Register Person', path: '/cases/new', icon: UserPlus, roles: ['Admin', 'Investigator', 'Citizen'] },
+    { name: 'Report Sighting', path: '/sightings/new', icon: Eye, roles: ['Admin', 'Investigator', 'Citizen'] },
   ] },
   { label: 'AI Detection & Review', items: [
     { name: 'Live Camera Feed', path: '/live-camera', icon: Camera },
     { name: 'Video Ingestion & Analysis', path: '/video-analysis', icon: Video },
+    { name: 'Evidence Center', path: '/evidence', icon: FolderKanban },
     { name: 'Potential Matches', path: '/matches', icon: GitCompare },
     { name: 'Investigation Timeline', path: '/timeline', icon: Clock },
     { name: 'Location Map', path: '/map', icon: MapPin },

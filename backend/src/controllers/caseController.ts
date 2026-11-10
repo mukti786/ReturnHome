@@ -6,8 +6,10 @@ import { AuthRequest } from '../middleware/authMiddleware';
 import { AIService } from '../services/aiService';
 import { Case } from '../models/Case';
 import { DetectionEvent } from '../models/DetectionEvent';
+import { Sighting } from '../models/Sighting';
 import { AuditLog } from '../models/AuditLog';
 import { isMongoConnected } from '../config/db';
+import { createAndSendNotification } from '../utils/notificationService';
 
 const CASES_UPLOAD_DIR = path.resolve(__dirname, '../../uploads/cases');
 
@@ -92,15 +94,21 @@ export const getCaseById = async (req: Request, res: Response) => {
     }
 
     // Get related detection events (matches)
-    const detections = await DetectionEvent.find({ $or: [{ caseId: caseDoc._id }, { caseRef: caseDoc.caseId }] })
-      .sort({ sourceTimestamp: -1 })
-      .limit(50)
-      .lean();
+    const [detections, sightings] = await Promise.all([
+      DetectionEvent.find({ $or: [{ caseId: caseDoc._id }, { caseRef: caseDoc.caseId }] })
+        .sort({ sourceTimestamp: -1 })
+        .limit(50)
+        .lean(),
+      Sighting.find({ caseRef: caseDoc.caseId })
+        .sort({ createdAt: -1 })
+        .lean()
+    ]);
 
     return res.json({
       success: true,
       case: caseDoc,
       detections,
+      sightings,
       activityLog: (caseDoc as any).activityLog || []
     });
   } catch (error: any) {
@@ -282,6 +290,16 @@ export const createCase = async (req: AuthRequest, res: Response) => {
       details: `Created missing person case ${caseId} for ${name.trim()}.`
     });
 
+    // Notify investigators of newly submitted missing-person case
+    void createAndSendNotification({
+      recipientRole: 'Investigator',
+      title: 'New Missing-Person Case Submitted',
+      message: `New case ${caseId} (${name.trim()}) registered by ${req.user?.name || 'Citizen'}.`,
+      type: 'case_status',
+      caseRef: caseId,
+      link: `/cases/${caseId}`
+    });
+
     const responseCase = newCase.toObject();
     delete (responseCase as any).faceEmbedding;
 
@@ -354,6 +372,17 @@ export const updateCase = async (req: AuthRequest, res: Response) => {
         action: 'Status Updated',
         description: `Case status changed from '${previousStatus}' to '${updates.status}'.`
       });
+
+      if (caseDoc.createdBy) {
+        void createAndSendNotification({
+          recipientId: caseDoc.createdBy,
+          title: `Case Status Updated: ${updates.status}`,
+          message: `Case ${caseDoc.caseId} (${caseDoc.name}) status changed from '${previousStatus}' to '${updates.status}'.`,
+          type: 'case_status',
+          caseRef: caseDoc.caseId,
+          link: `/cases/${caseDoc.caseId}`
+        });
+      }
     }
 
     activityEntries.push({

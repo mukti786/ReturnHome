@@ -1,7 +1,8 @@
 import {
   User, MissingPersonCase, CandidateMatch, TimelineEvent,
   AuditLogItem, DashboardStats, PublicReportItem, VideoJob,
-  DetectionEvent, CameraFeed
+  DetectionEvent, CameraFeed, SightingItem, NotificationItem,
+  UnifiedEvidenceItem
 } from '../types';
 
 const API_BASE_URL = '/api';
@@ -277,5 +278,67 @@ export const apiService = {
   async getAuditLogs(params: Record<string, string> = {}) {
     const query = new URLSearchParams(params).toString();
     return fetchAPI<{ success: boolean; total: number; logs: AuditLogItem[] }>(`/audit?${query}`);
+  },
+
+  // Sightings Workflow
+  async getSightings(params: Record<string, string> = {}) {
+    const query = new URLSearchParams(params).toString();
+    return fetchAPI<{ success: boolean; total: number; page: number; limit: number; sightings: SightingItem[] }>(`/sightings?${query}`);
+  },
+
+  async getSightingById(id: string) {
+    return fetchAPI<{ success: boolean; sighting: SightingItem }>(`/sightings/${id}`);
+  },
+
+  async createSighting(data: Partial<SightingItem> & { photoBase64?: string }) {
+    return fetchAPI<{ success: boolean; sighting: SightingItem; message: string }>('/sightings', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  },
+
+  async reviewSighting(id: string, status: 'Verified' | 'Rejected', reviewNotes: string) {
+    return fetchAPI<{ success: boolean; sighting: SightingItem; message: string }>(`/sightings/${id}/review`, {
+      method: 'PUT',
+      body: JSON.stringify({ status, reviewNotes })
+    });
+  },
+
+  // Notifications System
+  async getNotifications(params: Record<string, string> = {}) {
+    const query = new URLSearchParams(params).toString();
+    return fetchAPI<{ success: boolean; total: number; unreadCount: number; page: number; limit: number; notifications: NotificationItem[] }>(`/notifications?${query}`);
+  },
+
+  async getUnreadNotificationCount() {
+    return fetchAPI<{ success: boolean; count: number }>('/notifications/unread-count');
+  },
+
+  async markNotificationRead(id: string) {
+    return fetchAPI<{ success: boolean; notification: NotificationItem }>(`/notifications/${id}/read`, {
+      method: 'PUT'
+    });
+  },
+
+  async markAllNotificationsRead() {
+    return fetchAPI<{ success: boolean; message: string }>('/notifications/read-all', {
+      method: 'PUT'
+    });
+  },
+
+  // Centralized Evidence Center
+  async getEvidence(params: Record<string, string> = {}) {
+    const query = new URLSearchParams(params).toString();
+    return fetchAPI<{ success: boolean; total: number; page: number; limit: number; evidence: UnifiedEvidenceItem[] }>(`/evidence?${query}`);
+  },
+
+  async getEvidenceById(id: string) {
+    return fetchAPI<{ success: boolean; evidence: any }>(`/evidence/${id}`);
+  },
+
+  async exportEvidenceDossier(id: string) {
+    return fetchAPI<{ success: boolean; dossier: any }>(`/evidence/${id}/export`, {
+      method: 'POST'
+    });
   }
 };
