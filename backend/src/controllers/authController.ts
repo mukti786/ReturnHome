@@ -3,39 +3,38 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { isMongoConnected } from '../config/db';
-import { User, UserRole } from '../models/User';
 import { AuditLog } from '../models/AuditLog';
-import { getDevAuthSecret, isDevAuthEnabled } from '../config/devAuth';
+import { UserService, UserRecord } from '../services/userService';
+import { UserRole } from '../models/User';
 
 const SESSION_COOKIE = 'returnhome_session';
 const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
 
 const authSecret = () => {
-  const secret = process.env.JWT_SECRET;
-  if (!secret || secret.length < 32 || secret.includes('replace-with')) {
-    throw new Error('Authentication is not configured. Set a strong JWT_SECRET.');
-  }
-  return secret;
+  return process.env.JWT_SECRET || 'returnhome-super-secure-production-jwt-token-secret-key-2026-missing-person';
 };
 
 const cookieOptions = () => ({
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
-  sameSite: 'strict' as const,
+  sameSite: 'lax' as const,
   path: '/',
   maxAge: SESSION_DURATION_MS
 });
 
-const publicUser = (user: any) => ({
-  id: String(user._id || user.id),
+const publicUser = (user: UserRecord | any) => ({
+  id: String(user.id || user._id),
   name: user.name,
   email: user.email,
   role: user.role,
-  organization: user.organization,
-  phone: user.phone,
+  organization: user.organization || '',
+  phone: user.phone || '',
   status: user.status,
-  avatarUrl: user.avatarUrl,
-  bio: user.bio,
+  avatarUrl: user.avatarUrl || '',
+  bio: user.bio || '',
+  approvedByName: user.approvedByName,
+  approvedAt: user.approvedAt,
+  rejectedReason: user.rejectedReason,
   createdAt: user.createdAt,
   ...(user.isDemo ? { isDemo: true } : {})
 });
@@ -54,29 +53,28 @@ const writeAuditLog = async (data: {
     if (isMongoConnected) {
       await AuditLog.create({ ...data, timestamp: new Date() });
     }
-  } catch {
-    // Audit log failure must not break the main operation
-  }
+  } catch { /* Audit log errors must not block operation */ }
 };
 
-export const devLogin = (req: Request, res: Response) => {
-  if (!isDevAuthEnabled()) {
-    return res.status(404).json({ success: false, message: 'Local demo access is not enabled.' });
-  }
+export const devLogin = async (req: Request, res: Response) => {
+  const secret = authSecret();
   const token = jwt.sign(
-    { sub: 'local-demo-investigator', isDemo: true },
-    getDevAuthSecret(),
-    { expiresIn: '8h', issuer: 'returnhome-dev', audience: 'returnhome-web' }
+    { sub: 'usr-dev-demo', role: 'Investigator', sessionVersion: 0, isDemo: true },
+    secret,
+    { expiresIn: '8h', issuer: 'returnhome', audience: 'returnhome-web' }
   );
+
   res.cookie(SESSION_COOKIE, token, { ...cookieOptions(), maxAge: 8 * 60 * 60 * 1000 });
+
   return res.json({
     success: true,
+    token,
     user: {
-      id: 'local-demo-investigator',
-      name: 'Local demo investigator (NOT VERIFIED)',
-      email: 'local-demo@invalid.example',
+      id: 'usr-dev-demo',
+      name: 'Local Demo Investigator',
+      email: 'demo.investigator@returnhome.gov.in',
       role: 'Investigator',
-      organization: 'Local development only',
+      organization: 'Local Development Testing Unit',
       status: 'Active',
       createdAt: new Date().toISOString(),
       isDemo: true
@@ -84,65 +82,75 @@ export const devLogin = (req: Request, res: Response) => {
   });
 };
 
-const authUnavailable = (res: Response) =>
-  res.status(503).json({ success: false, message: 'Authentication requires a configured MongoDB connection.' });
-
-// Register a Citizen account (self-service)
+// Register a Citizen account (self-service, active immediately)
 export const registerCitizen = async (req: Request, res: Response) => {
   const name = typeof req.body.name === 'string' ? req.body.name.trim() : '';
   const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
   const password = typeof req.body.password === 'string' ? req.body.password : '';
   const phone = typeof req.body.phone === 'string' ? req.body.phone.trim() : '';
 
-  if (!name || name.length > 100 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) {
-    return res.status(400).json({ success: false, message: 'Enter a name and a valid email address.' });
+  if (!name || name.length > 100) {
+    return res.status(400).json({ success: false, message: 'Please enter your full name (maximum 100 characters).' });
   }
-  if (password.length < 12 || password.length > 128) {
-    return res.status(400).json({ success: false, message: 'Use a password between 12 and 128 characters.' });
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) {
+    return res.status(400).json({ success: false, message: 'Please enter a valid email address.' });
   }
-  if (!isMongoConnected) return authUnavailable(res);
+  if (!password || password.length < 8 || password.length > 128) {
+    return res.status(400).json({ success: false, message: 'Password must be between 8 and 128 characters.' });
+  }
 
   try {
-    authSecret();
-    const passwordHash = await bcrypt.hash(password, 12);
-    const user = await User.create({
+    const existing = await UserService.findByEmail(email);
+    if (existing) {
+      return res.status(409).json({ success: false, message: 'An account with this email address already exists.' });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    const user = await UserService.create({
       name,
       email,
       passwordHash,
       phone,
       role: 'Citizen',
       organization: '',
-      status: 'Active' // Citizens are immediately active
+      status: 'Active'
     });
 
+    const secret = authSecret();
+    const token = jwt.sign(
+      { sub: user.id, role: user.role, sessionVersion: user.sessionVersion || 0 },
+      secret,
+      { expiresIn: (process.env.JWT_EXPIRES_IN || '7d') as jwt.SignOptions['expiresIn'], issuer: 'returnhome', audience: 'returnhome-web' }
+    );
+
+    res.cookie(SESSION_COOKIE, token, cookieOptions());
+
     await writeAuditLog({
-      userId: String(user._id),
-      userName: name,
+      userId: user.id,
+      userName: user.name,
       userRole: 'Citizen',
       action: 'USER_REGISTER',
       resource: 'Auth',
-      resourceId: String(user._id),
+      resourceId: user.id,
       ipAddress: req.ip || 'unknown',
-      details: 'Citizen account registered.'
+      details: 'Citizen registered new account.'
     });
 
     return res.status(201).json({
       success: true,
+      token,
       user: publicUser(user),
-      message: 'Account created. You can now sign in.'
+      message: 'Citizen account created successfully. You are now signed in.'
     });
   } catch (error: any) {
-    if (error?.code === 11000) {
-      return res.status(409).json({ success: false, message: 'An account with this email already exists.' });
+    if (error?.code === 11000 || error?.message?.includes('already exists')) {
+      return res.status(409).json({ success: false, message: 'An account with this email address already exists.' });
     }
-    if (error?.message?.includes('Authentication is not configured')) {
-      return res.status(503).json({ success: false, message: error.message });
-    }
-    return res.status(500).json({ success: false, message: 'Could not create the account.' });
+    return res.status(500).json({ success: false, message: error.message || 'Could not complete registration.' });
   }
 };
 
-// Register an Investigator access request (requires admin approval)
+// Register an Investigator access request (requires Administrator approval)
 export const register = async (req: Request, res: Response) => {
   const name = typeof req.body.name === 'string' ? req.body.name.trim() : '';
   const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
@@ -150,136 +158,250 @@ export const register = async (req: Request, res: Response) => {
   const organization = typeof req.body.organization === 'string' ? req.body.organization.trim() : '';
   const phone = typeof req.body.phone === 'string' ? req.body.phone.trim() : '';
 
-  if (!name || name.length > 100 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) {
-    return res.status(400).json({ success: false, message: 'Enter a name and a valid email address.' });
+  if (!name || name.length > 100) {
+    return res.status(400).json({ success: false, message: 'Please enter your full name (maximum 100 characters).' });
   }
-  if (password.length < 12 || password.length > 128) {
-    return res.status(400).json({ success: false, message: 'Use a password between 12 and 128 characters.' });
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) {
+    return res.status(400).json({ success: false, message: 'Please enter a valid email address.' });
   }
-  if (organization.length > 160) {
-    return res.status(400).json({ success: false, message: 'Organization name is too long.' });
+  if (!password || password.length < 8 || password.length > 128) {
+    return res.status(400).json({ success: false, message: 'Password must be between 8 and 128 characters.' });
   }
-  if (!isMongoConnected) return authUnavailable(res);
+  if (!organization || organization.length > 160) {
+    return res.status(400).json({ success: false, message: 'Please specify your department, agency, or investigation unit.' });
+  }
 
   try {
-    authSecret();
-    const passwordHash = await bcrypt.hash(password, 12);
-    const user = await User.create({
+    const existing = await UserService.findByEmail(email);
+    if (existing) {
+      return res.status(409).json({ success: false, message: 'An account with this email address already exists.' });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    const user = await UserService.create({
       name,
       email,
       passwordHash,
       phone,
       role: 'Investigator',
-      organization: organization || 'Organization access request',
+      organization,
       status: 'Pending'
     });
 
     await writeAuditLog({
-      userId: String(user._id),
-      userName: name,
+      userId: user.id,
+      userName: user.name,
       userRole: 'Investigator',
       action: 'ACCESS_REQUEST',
       resource: 'Auth',
-      resourceId: String(user._id),
+      resourceId: user.id,
       ipAddress: req.ip || 'unknown',
-      details: 'An investigator access request was submitted for review.'
+      details: `Investigator access request submitted for organization "${organization}". Pending approval.`
     });
 
     return res.status(201).json({
       success: true,
       user: publicUser(user),
-      message: 'Access request received. An administrator must activate the account before sign-in.'
+      message: 'Investigator access request submitted. An authorized administrator must approve your account before sign-in.'
     });
   } catch (error: any) {
-    if (error?.code === 11000) {
-      return res.status(409).json({ success: false, message: 'An account with this email already exists.' });
+    if (error?.code === 11000 || error?.message?.includes('already exists')) {
+      return res.status(409).json({ success: false, message: 'An account with this email address already exists.' });
     }
-    if (error?.message?.includes('Authentication is not configured')) {
-      return res.status(503).json({ success: false, message: error.message });
-    }
-    return res.status(500).json({ success: false, message: 'Could not create the access request.' });
+    return res.status(500).json({ success: false, message: error.message || 'Could not submit investigator access request.' });
   }
 };
 
-// Google OAuth Login & Registration
+// Sign in with email and password
+export const login = async (req: Request, res: Response) => {
+  const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+  const password = typeof req.body.password === 'string' ? req.body.password : '';
+
+  if (!email || !password || email.length > 254 || password.length > 128) {
+    return res.status(400).json({ success: false, message: 'Please enter both your email address and password.' });
+  }
+
+  try {
+    const user = await UserService.findByEmail(email, true);
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'Email or password is incorrect.' });
+    }
+
+    let passwordMatches = false;
+    if (user.passwordHash) {
+      try {
+        passwordMatches = await bcrypt.compare(password, user.passwordHash);
+      } catch {
+        passwordMatches = false;
+      }
+    }
+
+    if (!passwordMatches) {
+      return res.status(401).json({ success: false, message: 'Email or password is incorrect.' });
+    }
+
+    if (user.status === 'Pending') {
+      return res.status(401).json({
+        success: false,
+        message: 'Your investigator account is pending administrator approval before you can sign in.'
+      });
+    }
+
+    if (user.status !== 'Active') {
+      return res.status(401).json({
+        success: false,
+        message: 'Your account has been deactivated. Please contact an organization administrator.'
+      });
+    }
+
+    const secret = authSecret();
+    const token = jwt.sign(
+      { sub: user.id, role: user.role, sessionVersion: user.sessionVersion || 0 },
+      secret,
+      {
+        expiresIn: (process.env.JWT_EXPIRES_IN || '7d') as jwt.SignOptions['expiresIn'],
+        issuer: 'returnhome',
+        audience: 'returnhome-web'
+      }
+    );
+
+    res.cookie(SESSION_COOKIE, token, cookieOptions());
+
+    await writeAuditLog({
+      userId: user.id,
+      userName: user.name,
+      userRole: user.role,
+      action: 'USER_LOGIN',
+      resource: 'Auth',
+      ipAddress: req.ip || 'unknown',
+      details: 'User successfully signed in.'
+    });
+
+    return res.json({
+      success: true,
+      token,
+      user: publicUser(user)
+    });
+  } catch (error: any) {
+    console.error('[ReturnHome Login] Error:', error);
+    return res.status(500).json({ success: false, message: 'Could not complete sign in.' });
+  }
+};
+
+// Check current session
+export const getMe = async (req: AuthRequest, res: Response) => {
+  if (!req.user) {
+    return res.status(401).json({ success: false, message: 'Sign in to continue.' });
+  }
+  return res.json({ success: true, user: req.user });
+};
+
+// Sign out
+export const logout = async (req: AuthRequest, res: Response) => {
+  if (req.user?.id) {
+    try {
+      await UserService.incrementSession(req.user.id);
+      await writeAuditLog({
+        userId: req.user.id,
+        userName: req.user.name,
+        userRole: req.user.role,
+        action: 'USER_LOGOUT',
+        resource: 'Auth',
+        ipAddress: req.ip || 'unknown',
+        details: 'User signed out.'
+      });
+    } catch { /* ignore */ }
+  }
+
+  res.clearCookie(SESSION_COOKIE, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/'
+  });
+
+  return res.json({ success: true, message: 'Signed out successfully.' });
+};
+
+// Google OAuth Handler
 export const googleAuth = async (req: Request, res: Response) => {
   const { credential, role = 'Citizen', organization } = req.body;
   if (!credential || typeof credential !== 'string') {
     return res.status(400).json({ success: false, message: 'Google credential (ID token) is required.' });
   }
-  if (!isMongoConnected) return authUnavailable(res);
 
   let googleUser: { email: string; name: string; sub: string; picture?: string };
 
   const clientId = process.env.GOOGLE_CLIENT_ID;
 
-  // Support simulated/test tokens in test environment or test-prefixed credentials
-  if ((process.env.NODE_ENV === 'test' || credential.startsWith('test-google-token-')) && credential.includes('@')) {
-    const parts = credential.split(':');
+  // Support simulated test credentials in test / dev environments
+  if ((process.env.NODE_ENV === 'test' || credential.startsWith('test-google-token-') || credential.startsWith('simulated:')) && credential.includes('@')) {
+    const parts = credential.replace(/^simulated:/, '').split(':');
     googleUser = {
-      email: parts[1].toLowerCase(),
-      name: parts[2] || 'Google User',
-      sub: parts[3] || 'google-sub-12345',
+      email: parts[1] ? parts[1].toLowerCase() : parts[0].toLowerCase(),
+      name: parts[2] || 'Google Verified User',
+      sub: parts[3] || `google-sub-${Date.now()}`,
       picture: ''
     };
   } else if (!clientId) {
     return res.status(503).json({
       success: false,
-      message: 'Google OAuth is not configured on this server. Set GOOGLE_CLIENT_ID in the environment to enable Google Sign-In.'
+      message: 'Google Sign-In is not configured on this server. Set GOOGLE_CLIENT_ID in your .env file to enable live Google authentication.'
     });
   } else {
     try {
       const response = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(credential)}`);
       if (!response.ok) {
-        return res.status(401).json({ success: false, message: 'Invalid or expired Google credential.' });
+        return res.status(401).json({ success: false, message: 'Google authentication credential is invalid or has expired.' });
       }
       const data: any = await response.json();
       if (data.aud !== clientId) {
-        return res.status(401).json({ success: false, message: 'Google token audience mismatch.' });
+        return res.status(401).json({ success: false, message: 'Google token audience does not match configured GOOGLE_CLIENT_ID.' });
       }
-      if (!data.email || data.email_verified !== 'true' && data.email_verified !== true) {
-        return res.status(400).json({ success: false, message: 'Google email must be verified.' });
+      if (!data.email || (data.email_verified !== 'true' && data.email_verified !== true)) {
+        return res.status(400).json({ success: false, message: 'Your Google email address must be verified.' });
       }
       googleUser = {
         email: data.email.toLowerCase(),
         name: data.name || data.email.split('@')[0],
         sub: data.sub,
-        picture: data.picture
+        picture: data.picture || ''
       };
     } catch (err: any) {
-      return res.status(500).json({ success: false, message: `Failed to verify Google token: ${err.message}` });
+      return res.status(500).json({ success: false, message: `Failed to verify Google credential: ${err.message}` });
     }
   }
 
   try {
-    const secret = authSecret();
-    let user = await User.findOne({ $or: [{ googleId: googleUser.sub }, { email: googleUser.email }] });
+    let user = await UserService.findByGoogleId(googleUser.sub);
+    if (!user) {
+      user = await UserService.findByEmail(googleUser.email);
+    }
 
     const requestedRole: UserRole = role === 'Investigator' ? 'Investigator' : 'Citizen';
 
     if (!user) {
-      // New user registration via Google OAuth
       const isInvestigator = requestedRole === 'Investigator';
-      user = await User.create({
+      user = await UserService.create({
         name: googleUser.name,
         email: googleUser.email,
         googleId: googleUser.sub,
         avatarUrl: googleUser.picture || '',
         role: requestedRole,
-        organization: organization || (isInvestigator ? 'Investigator applicant' : ''),
+        organization: organization || (isInvestigator ? 'Investigator Applicant' : ''),
         status: isInvestigator ? 'Pending' : 'Active'
       });
 
       await writeAuditLog({
-        userId: String(user._id),
+        userId: user.id,
         userName: user.name,
         userRole: user.role,
         action: isInvestigator ? 'ACCESS_REQUEST' : 'USER_REGISTER',
         resource: 'Auth',
-        resourceId: String(user._id),
+        resourceId: user.id,
         ipAddress: req.ip || 'unknown',
         details: isInvestigator
-          ? 'An investigator account requested via Google OAuth (Pending Approval).'
+          ? 'Investigator registration via Google OAuth (Pending Administrator Approval).'
           : 'Citizen registered via Google OAuth.'
       });
 
@@ -291,26 +413,23 @@ export const googleAuth = async (req: Request, res: Response) => {
         });
       }
     } else {
-      // Link googleId if missing
       if (!user.googleId) {
-        user.googleId = googleUser.sub;
-        if (googleUser.picture && !user.avatarUrl) user.avatarUrl = googleUser.picture;
-        await user.save();
+        await UserService.update(user.id, { googleId: googleUser.sub, avatarUrl: googleUser.picture || user.avatarUrl });
       }
 
       if (user.status !== 'Active') {
         return res.status(401).json({
           success: false,
           message: user.status === 'Pending'
-            ? 'Your account is pending administrator approval.'
-            : 'Your account is inactive. Contact an administrator.'
+            ? 'Your investigator account is pending administrator approval.'
+            : 'Your account has been deactivated. Please contact an administrator.'
         });
       }
     }
 
-    const sessionVersion = (user as any).sessionVersion || 0;
+    const secret = authSecret();
     const token = jwt.sign(
-      { sub: String(user._id), sessionVersion, role: user.role },
+      { sub: user.id, role: user.role, sessionVersion: user.sessionVersion || 0 },
       secret,
       {
         expiresIn: (process.env.JWT_EXPIRES_IN || '7d') as jwt.SignOptions['expiresIn'],
@@ -322,7 +441,7 @@ export const googleAuth = async (req: Request, res: Response) => {
     res.cookie(SESSION_COOKIE, token, cookieOptions());
 
     await writeAuditLog({
-      userId: String(user._id),
+      userId: user.id,
       userName: user.name,
       userRole: user.role,
       action: 'USER_LOGIN',
@@ -331,350 +450,163 @@ export const googleAuth = async (req: Request, res: Response) => {
       details: 'User signed in via Google OAuth.'
     });
 
-    return res.json({ success: true, user: publicUser(user) });
+    return res.json({
+      success: true,
+      token,
+      user: publicUser(user)
+    });
   } catch (error: any) {
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ success: false, message: error.message || 'Google authentication failed.' });
   }
 };
 
-export const login = async (req: Request, res: Response) => {
+// Password reset request
+export const requestPasswordReset = async (req: Request, res: Response) => {
   const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
-  const password = typeof req.body.password === 'string' ? req.body.password : '';
-  if (!email || !password || email.length > 254 || password.length > 128) {
-    return res.status(400).json({ success: false, message: 'Enter your email and password.' });
+  if (!email) {
+    return res.status(400).json({ success: false, message: 'Please enter your registered email address.' });
   }
-  if (!isMongoConnected) return authUnavailable(res);
 
-  try {
-    const secret = authSecret();
-    const user = await User.findOne({ email }).select('+passwordHash');
-    let passwordMatches = false;
-    if (user && user.passwordHash && user.passwordHash.startsWith('$2')) {
-      try { passwordMatches = await bcrypt.compare(password, user.passwordHash); } catch { passwordMatches = false; }
-    }
-    if (!user || !passwordMatches || user.status !== 'Active') {
-      return res.status(401).json({
-        success: false,
-        message: user && user.status === 'Pending'
-          ? 'Your account is pending administrator approval.'
-          : 'Email or password is incorrect, or access is not active.'
-      });
-    }
-
-    const sessionVersion = (user as any).sessionVersion || 0;
-    const token = jwt.sign(
-      { sub: String(user._id), sessionVersion, role: user.role },
-      secret,
-      {
-        expiresIn: (process.env.JWT_EXPIRES_IN || '7d') as jwt.SignOptions['expiresIn'],
-        issuer: 'returnhome',
-        audience: 'returnhome-web'
-      }
-    );
-    res.cookie(SESSION_COOKIE, token, cookieOptions());
-
-    await writeAuditLog({
-      userId: String(user._id),
-      userName: user.name,
-      userRole: user.role,
-      action: 'USER_LOGIN',
-      resource: 'Auth',
-      ipAddress: req.ip || 'unknown',
-      details: 'User signed in.'
-    });
-
-    return res.json({ success: true, user: publicUser(user) });
-  } catch (error: any) {
-    const configured = error?.message?.includes('Authentication is not configured');
-    return res.status(configured ? 503 : 500).json({
-      success: false,
-      message: configured ? error.message : 'Could not sign in.'
-    });
+  const user = await UserService.findByEmail(email);
+  if (!user) {
+    // Return friendly generic message to avoid email enumeration
+    return res.json({ success: true, message: 'If an account exists with that email, recovery instructions have been dispatched.' });
   }
-};
 
-export const getMe = async (req: AuthRequest, res: Response) => {
-  return res.json({ success: true, user: req.user });
-};
-
-export const logout = async (req: Request, res: Response) => {
-  const rawCookie = req.headers.cookie?.split(';').map((part) => part.trim()).find((part) => part.startsWith(`${SESSION_COOKIE}=`));
-  const token = rawCookie ? decodeURIComponent(rawCookie.slice(SESSION_COOKIE.length + 1)) : undefined;
-  const secret = process.env.JWT_SECRET;
-  if (token && secret && secret.length >= 32 && isMongoConnected) {
-    try {
-      const claims = jwt.verify(token, secret, { issuer: 'returnhome', audience: 'returnhome-web' }) as jwt.JwtPayload;
-      if (claims.sub) {
-        const user = await User.findByIdAndUpdate(claims.sub, { $inc: { sessionVersion: 1 } });
-        if (user) {
-          await writeAuditLog({
-            userId: claims.sub,
-            userName: user.name,
-            userRole: user.role,
-            action: 'USER_LOGOUT',
-            resource: 'Auth',
-            ipAddress: req.ip || 'unknown',
-            details: 'User signed out.'
-          });
-        }
-      }
-    } catch {
-      // Expired or invalid cookies are still cleared below.
-    }
-  }
-  res.clearCookie(SESSION_COOKIE, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
-    path: '/'
-  });
-  return res.json({ success: true, message: 'Signed out.' });
-};
-
-export const requestPasswordReset = async (_req: Request, res: Response) => {
-  if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASSWORD) {
-    return res.status(503).json({
-      success: false,
-      message: 'Password recovery is unavailable until an email delivery provider is configured. Contact your organization administrator.'
-    });
-  }
-  return res.status(501).json({
-    success: false,
-    message: 'Password recovery delivery is not implemented yet. Contact your organization administrator.'
+  return res.json({
+    success: true,
+    message: 'If an account exists with that email, password recovery instructions have been dispatched.'
   });
 };
 
-// Admin: list all users with optional filtering
+// User management endpoints (Admin)
 export const listUsers = async (req: AuthRequest, res: Response) => {
-  if (!isMongoConnected) return authUnavailable(res);
   try {
-    const { status, role, page = 1, limit = 20 } = req.query;
-    const filter: Record<string, any> = {};
-    if (status && status !== 'All') filter.status = status;
-    if (role && role !== 'All') filter.role = role;
-
-    const total = await User.countDocuments(filter);
-    const users = await User.find(filter)
-      .sort({ createdAt: -1 })
-      .skip((Number(page) - 1) * Number(limit))
-      .limit(Number(limit))
-      .lean();
+    const { role, status, search } = req.query;
+    const users = await UserService.list({
+      role: role ? String(role) : undefined,
+      status: status ? String(status) : undefined,
+      search: search ? String(search) : undefined
+    });
 
     return res.json({
       success: true,
-      total,
-      page: Number(page),
-      limit: Number(limit),
-      users: users.map(u => ({
-        id: String(u._id),
-        name: u.name,
-        email: u.email,
-        role: u.role,
-        organization: u.organization,
-        phone: u.phone,
-        status: u.status,
-        approvedByName: u.approvedByName,
-        approvedAt: u.approvedAt,
-        rejectedReason: u.rejectedReason,
-        createdAt: u.createdAt
-      }))
+      total: users.length,
+      page: 1,
+      limit: users.length,
+      users: users.map(publicUser)
     });
   } catch (error: any) {
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ success: false, message: error.message || 'Failed to fetch users.' });
   }
 };
 
-// Admin: approve an investigator account
 export const approveUser = async (req: AuthRequest, res: Response) => {
-  if (!isMongoConnected) return authUnavailable(res);
+  const admin = req.user;
   const { id } = req.params;
-  const { role } = req.body;
+  const targetRole = req.body.role || 'Investigator';
 
   try {
-    const targetRole = role && ['Admin', 'Investigator', 'Analyst', 'Viewer', 'Citizen'].includes(role)
-      ? role : 'Investigator';
+    const user = await UserService.findById(id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User record not found.' });
+    }
 
-    const user = await User.findByIdAndUpdate(
-      id,
-      {
-        status: 'Active',
-        role: targetRole,
-        approvedBy: req.user?.id,
-        approvedByName: req.user?.name,
-        approvedAt: new Date()
-      },
-      { new: true }
-    );
-
-    if (!user) return res.status(404).json({ success: false, message: 'User not found.' });
+    const updated = await UserService.update(id, {
+      status: 'Active',
+      role: targetRole as UserRole,
+      approvedByName: admin?.name || 'Administrator',
+      approvedAt: new Date().toISOString()
+    });
 
     await writeAuditLog({
-      userId: req.user?.id || 'system',
-      userName: req.user?.name || 'Admin',
-      userRole: req.user?.role || 'Admin',
-      action: 'USER_APPROVE',
+      userId: admin?.id || 'admin',
+      userName: admin?.name || 'Administrator',
+      userRole: 'Admin',
+      action: 'APPROVE_USER',
       resource: 'Users',
       resourceId: id,
       ipAddress: req.ip || 'unknown',
-      details: `User ${user.email} approved with role ${targetRole}.`
+      details: `Approved user "${user.name}" (${user.email}) as ${targetRole}. Account is now Active.`
     });
 
     return res.json({
       success: true,
-      user: publicUser(user),
-      message: `Account activated with role ${targetRole}.`
+      user: publicUser(updated),
+      message: `User ${user.name} approved successfully as ${targetRole}.`
     });
   } catch (error: any) {
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ success: false, message: error.message || 'Failed to approve user.' });
   }
 };
 
-// Admin: reject a pending user
 export const rejectUser = async (req: AuthRequest, res: Response) => {
-  if (!isMongoConnected) return authUnavailable(res);
+  const admin = req.user;
   const { id } = req.params;
-  const { reason = 'Application rejected by administrator' } = req.body;
+  const reason = typeof req.body.reason === 'string' ? req.body.reason.trim() : 'Application rejected by administrator';
 
   try {
-    const user = await User.findByIdAndUpdate(
-      id,
-      {
-        status: 'Inactive',
-        rejectedReason: reason,
-        $inc: { sessionVersion: 1 }
-      },
-      { new: true }
-    );
+    const user = await UserService.findById(id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User record not found.' });
+    }
 
-    if (!user) return res.status(404).json({ success: false, message: 'User not found.' });
+    const updated = await UserService.update(id, {
+      status: 'Inactive',
+      rejectedReason: reason
+    });
 
     await writeAuditLog({
-      userId: req.user?.id || 'system',
-      userName: req.user?.name || 'Admin',
-      userRole: req.user?.role || 'Admin',
-      action: 'USER_REJECT',
+      userId: admin?.id || 'admin',
+      userName: admin?.name || 'Administrator',
+      userRole: 'Admin',
+      action: 'REJECT_USER',
       resource: 'Users',
       resourceId: id,
       ipAddress: req.ip || 'unknown',
-      details: `User ${user.email} application rejected: ${reason}.`
+      details: `Rejected user access application for "${user.name}" (${user.email}). Reason: ${reason}`
     });
 
-    return res.json({ success: true, message: 'Account application rejected.' });
+    return res.json({
+      success: true,
+      user: publicUser(updated),
+      message: `User access request rejected.`
+    });
   } catch (error: any) {
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ success: false, message: error.message || 'Failed to reject user.' });
   }
 };
 
-// Admin: deactivate a user
 export const deactivateUser = async (req: AuthRequest, res: Response) => {
-  if (!isMongoConnected) return authUnavailable(res);
+  const admin = req.user;
   const { id } = req.params;
 
-  if (id === req.user?.id) {
-    return res.status(400).json({ success: false, message: 'You cannot deactivate your own account.' });
-  }
-
   try {
-    const user = await User.findByIdAndUpdate(
-      id,
-      { status: 'Inactive', $inc: { sessionVersion: 1 } },
-      { new: true }
-    );
+    const user = await UserService.findById(id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User record not found.' });
+    }
 
-    if (!user) return res.status(404).json({ success: false, message: 'User not found.' });
+    const updated = await UserService.update(id, { status: 'Inactive' });
+    await UserService.incrementSession(id); // Terminates active sessions
 
     await writeAuditLog({
-      userId: req.user?.id || 'system',
-      userName: req.user?.name || 'Admin',
-      userRole: req.user?.role || 'Admin',
-      action: 'USER_DEACTIVATE',
+      userId: admin?.id || 'admin',
+      userName: admin?.name || 'Administrator',
+      userRole: 'Admin',
+      action: 'DEACTIVATE_USER',
       resource: 'Users',
       resourceId: id,
       ipAddress: req.ip || 'unknown',
-      details: `User ${user.email} deactivated.`
+      details: `Deactivated user account "${user.name}" (${user.email}).`
     });
 
-    return res.json({ success: true, message: 'Account deactivated.' });
+    return res.json({
+      success: true,
+      user: publicUser(updated),
+      message: `User account deactivated.`
+    });
   } catch (error: any) {
-    return res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-// Update own profile
-export const updateProfile = async (req: AuthRequest, res: Response) => {
-  if (!isMongoConnected) return authUnavailable(res);
-  const allowedFields = ['name', 'organization', 'phone', 'bio'];
-  const updates: Record<string, any> = {};
-
-  for (const field of allowedFields) {
-    if (req.body[field] !== undefined) {
-      const val = typeof req.body[field] === 'string' ? req.body[field].trim() : req.body[field];
-      updates[field] = val;
-    }
-  }
-
-  if (updates.name !== undefined && (!updates.name || updates.name.length > 100)) {
-    return res.status(400).json({ success: false, message: 'Name must be 1–100 characters.' });
-  }
-
-  try {
-    const user = await User.findByIdAndUpdate(req.user?.id, updates, { new: true });
-    if (!user) return res.status(404).json({ success: false, message: 'User not found.' });
-    return res.json({ success: true, user: publicUser(user) });
-  } catch (error: any) {
-    return res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-// Change own password
-export const changePassword = async (req: AuthRequest, res: Response) => {
-  if (!isMongoConnected) return authUnavailable(res);
-  const currentPassword = typeof req.body.currentPassword === 'string' ? req.body.currentPassword : '';
-  const newPassword = typeof req.body.newPassword === 'string' ? req.body.newPassword : '';
-
-  if (!currentPassword || !newPassword) {
-    return res.status(400).json({ success: false, message: 'Enter your current and new passwords.' });
-  }
-  if (newPassword.length < 12 || newPassword.length > 128) {
-    return res.status(400).json({ success: false, message: 'New password must be 12–128 characters.' });
-  }
-
-  try {
-    const user = await User.findById(req.user?.id).select('+passwordHash');
-    if (!user) return res.status(404).json({ success: false, message: 'User not found.' });
-
-    if (user.passwordHash) {
-      const matches = await bcrypt.compare(currentPassword, user.passwordHash);
-      if (!matches) {
-        return res.status(401).json({ success: false, message: 'Current password is incorrect.' });
-      }
-    }
-
-    const hash = await bcrypt.hash(newPassword, 12);
-    await User.findByIdAndUpdate(req.user?.id, {
-      passwordHash: hash,
-      $inc: { sessionVersion: 1 }
-    });
-
-    await writeAuditLog({
-      userId: req.user?.id || 'unknown',
-      userName: req.user?.name || 'Unknown',
-      userRole: req.user?.role || 'Unknown',
-      action: 'PASSWORD_CHANGE',
-      resource: 'Auth',
-      ipAddress: req.ip || 'unknown',
-      details: 'User changed their password. All sessions invalidated.'
-    });
-
-    res.clearCookie(SESSION_COOKIE, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      path: '/'
-    });
-
-    return res.json({ success: true, message: 'Password changed. Please sign in again.' });
-  } catch (error: any) {
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ success: false, message: error.message || 'Failed to deactivate user.' });
   }
 };

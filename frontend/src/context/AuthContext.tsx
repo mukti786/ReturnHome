@@ -27,35 +27,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
   const [isDemoMode, setIsDemoMode] = useState(false);
   const [authStartupError, setAuthStartupError] = useState('');
-  const canStartLocalDemo = import.meta.env.DEV && import.meta.env.VITE_DEV_AUTH_BYPASS === 'true';
 
   useEffect(() => {
+    let active = true;
     const restoreSession = async () => {
       try {
         const result = await apiService.getMe();
-        setUser(result.user);
-        setIsDemoMode(!!result.user.isDemo);
-        setAuthStartupError('');
-      } catch (sessionError) {
-        setUser(null);
-        if (canStartLocalDemo) {
-          try {
-            const result = await apiService.devLogin();
-            setUser(result.user);
-            setIsDemoMode(true);
-            setAuthStartupError('');
-          } catch (demoError) {
-            setAuthStartupError(demoError instanceof Error ? demoError.message : 'Local demo access could not start.');
+        if (active && result.success && result.user) {
+          setUser(result.user);
+          setIsDemoMode(!!result.user.isDemo);
+          setAuthStartupError('');
+        }
+      } catch (sessionError: any) {
+        if (active) {
+          setUser(null);
+          // Only show error if backend connection completely failed, not for normal signed-out state
+          if (sessionError?.message &&
+              !sessionError.message.includes('Sign in to continue') &&
+              !sessionError.message.includes('HTTP 401') &&
+              !sessionError.message.includes('expired')) {
+            setAuthStartupError(sessionError.message);
           }
-        } else if (!(sessionError instanceof Error && sessionError.message === 'Sign in to continue.')) {
-          setAuthStartupError(sessionError instanceof Error ? sessionError.message : 'Could not check the current session.');
         }
       } finally {
-        setIsLoading(false);
+        if (active) setIsLoading(false);
       }
     };
     void restoreSession();
-  }, [canStartLocalDemo]);
+    return () => { active = false; };
+  }, []);
 
   const login = async (email: string, pass: string): Promise<boolean> => {
     setIsLoading(true);
@@ -74,7 +74,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     try {
       const result = await apiService.googleAuth(credential, role, organization);
-      if (result.user.status === 'Active') {
+      if (result.user && result.user.status === 'Active') {
         setUser(result.user);
         setIsDemoMode(false);
         setAuthStartupError('');
@@ -103,13 +103,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const registerCitizen = async (input: { name: string; email: string; password: string; phone?: string }) => {
     const result = await apiService.registerCitizen(input);
+    if (result.user && result.user.status === 'Active') {
+      setUser(result.user);
+      setIsDemoMode(false);
+      setAuthStartupError('');
+    }
     return result.message;
   };
 
   const logout = async () => {
-    await apiService.logout();
-    setUser(null);
-    setIsDemoMode(false);
+    try {
+      await apiService.logout();
+    } finally {
+      setUser(null);
+      setIsDemoMode(false);
+    }
   };
 
   const switchRole = (_role: UserRole) => {

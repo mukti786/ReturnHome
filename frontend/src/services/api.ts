@@ -12,6 +12,10 @@ async function fetchAPI<T>(endpoint: string, options: RequestInit = {}): Promise
   const headers: Record<string, string> = {
     ...(options.headers as Record<string, string>),
   };
+  const token = typeof window !== 'undefined' ? localStorage.getItem('returnhome_token') : null;
+  if (token && !headers['Authorization']) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
   if (!(options.body instanceof FormData) && !Object.keys(headers).some((key) => key.toLowerCase() === 'content-type')) {
     headers['Content-Type'] = 'application/json';
   }
@@ -61,21 +65,33 @@ async function fetchAPI<T>(endpoint: string, options: RequestInit = {}): Promise
 export const apiService = {
   // Authentication
   async login(email: string, password: string) {
-    return fetchAPI<{ success: boolean; user: User }>('/auth/login', {
+    const res = await fetchAPI<{ success: boolean; user: User; token?: string }>('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     });
+    if (res.token) {
+      localStorage.setItem('returnhome_token', res.token);
+    }
+    return res;
   },
 
   async devLogin() {
-    return fetchAPI<{ success: boolean; user: User }>('/auth/dev-login', { method: 'POST' });
+    const res = await fetchAPI<{ success: boolean; user: User; token?: string }>('/auth/dev-login', { method: 'POST' });
+    if (res.token) {
+      localStorage.setItem('returnhome_token', res.token);
+    }
+    return res;
   },
 
   async googleAuth(credential: string, role: string = 'Citizen', organization?: string) {
-    return fetchAPI<{ success: boolean; user: User; message?: string }>('/auth/google', {
+    const res = await fetchAPI<{ success: boolean; user: User; token?: string; message?: string }>('/auth/google', {
       method: 'POST',
       body: JSON.stringify({ credential, role, organization }),
     });
+    if (res.token) {
+      localStorage.setItem('returnhome_token', res.token);
+    }
+    return res;
   },
 
   async register(userData: { name: string; email: string; password: string; organization?: string; phone?: string }) {
@@ -86,10 +102,14 @@ export const apiService = {
   },
 
   async registerCitizen(userData: { name: string; email: string; password: string; phone?: string }) {
-    return fetchAPI<{ success: boolean; user: User; message: string }>('/auth/register-citizen', {
+    const res = await fetchAPI<{ success: boolean; user: User; token?: string; message: string }>('/auth/register-citizen', {
       method: 'POST',
       body: JSON.stringify(userData),
     });
+    if (res.token) {
+      localStorage.setItem('returnhome_token', res.token);
+    }
+    return res;
   },
 
   async getMe() {
@@ -97,7 +117,11 @@ export const apiService = {
   },
 
   async logout() {
-    return fetchAPI<{ success: boolean; message: string }>('/auth/logout', { method: 'POST' });
+    try {
+      return await fetchAPI<{ success: boolean; message: string }>('/auth/logout', { method: 'POST' });
+    } finally {
+      localStorage.removeItem('returnhome_token');
+    }
   },
 
   async requestPasswordReset(email: string) {

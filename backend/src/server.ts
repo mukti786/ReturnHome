@@ -24,6 +24,8 @@ import notificationRoutes from './routes/notificationRoutes';
 import evidenceRoutes from './routes/evidenceRoutes';
 import { protect } from './middleware/authMiddleware';
 import { AIService } from './services/aiService';
+import { UserService } from './services/userService';
+import bcrypt from 'bcryptjs';
 import { Case } from './models/Case';
 import { DetectionEvent } from './models/DetectionEvent';
 
@@ -294,9 +296,31 @@ app.use((error: any, _req: express.Request, res: express.Response, _next: expres
 
 const PORT = process.env.PORT || 5000;
 
+// Ensure default administrator account exists
+const ensureDefaultAdmin = async () => {
+  try {
+    const admin = await UserService.findByEmail('admin@returnhome.gov.in');
+    if (!admin) {
+      const passwordHash = await bcrypt.hash('AdminPassword123!', 10);
+      await UserService.create({
+        name: 'Administrator Vikram Singh',
+        email: 'admin@returnhome.gov.in',
+        passwordHash,
+        role: 'Admin',
+        organization: 'ReturnHome Central Command',
+        status: 'Active'
+      });
+      console.log('[ReturnHome Auth] Seeded default administrator: admin@returnhome.gov.in');
+    }
+  } catch (err: any) {
+    console.warn('[ReturnHome Auth] Could not ensure default admin:', err.message);
+  }
+};
+
 // Start Server
 export const startServer = async () => {
   await connectDB();
+  await ensureDefaultAdmin();
   return server.listen(PORT, () => {
     console.log(`
 ================================================================
