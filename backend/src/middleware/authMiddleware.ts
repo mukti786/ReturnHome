@@ -48,16 +48,39 @@ export const protect = async (req: AuthRequest, res: Response, next: NextFunctio
       return res.status(401).json({ success: false, message: 'Invalid session token.' });
     }
 
-    if (claims.isDemo === true && claims.sub === 'usr-dev-demo') {
-      req.user = {
-        id: 'usr-dev-demo',
-        name: 'Local Demo Investigator',
+    if (claims.isDemo === true) {
+      const role = claims.role || 'Investigator';
+      let demoUser = {
+        id: claims.sub || 'usr-dev-demo',
+        name: 'Officer Ananya Sen (Demo)',
         email: 'demo.investigator@returnhome.gov.in',
         role: 'Investigator',
-        organization: 'Local Development Testing Unit',
+        organization: 'Special Missing Persons Unit',
         status: 'Active',
         isDemo: true
       };
+      if (role === 'Citizen') {
+        demoUser = {
+          id: claims.sub || 'usr-demo-citizen',
+          name: 'Priya Sharma (Citizen Demo)',
+          email: 'citizen.demo@returnhome.gov.in',
+          role: 'Citizen',
+          organization: 'Public Reporting',
+          status: 'Active',
+          isDemo: true
+        };
+      } else if (role === 'Admin') {
+        demoUser = {
+          id: claims.sub || 'usr-demo-admin',
+          name: 'Inspector Vikram Singh (Demo)',
+          email: 'admin.demo@returnhome.gov.in',
+          role: 'Admin',
+          organization: 'Central Command',
+          status: 'Active',
+          isDemo: true
+        };
+      }
+      req.user = demoUser;
       return next();
     }
 

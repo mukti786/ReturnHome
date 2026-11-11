@@ -296,31 +296,64 @@ app.use((error: any, _req: express.Request, res: express.Response, _next: expres
 
 const PORT = process.env.PORT || 5000;
 
-// Ensure default administrator account exists
-const ensureDefaultAdmin = async () => {
+// Ensure default system accounts exist (Administrator, Investigator, Citizen)
+const ensureDefaultUsers = async () => {
   try {
-    const admin = await UserService.findByEmail('admin@returnhome.gov.in');
-    if (!admin) {
-      const passwordHash = await bcrypt.hash('AdminPassword123!', 10);
-      await UserService.create({
+    const seedAccounts = [
+      {
         name: 'Administrator Vikram Singh',
         email: 'admin@returnhome.gov.in',
-        passwordHash,
-        role: 'Admin',
-        organization: 'ReturnHome Central Command',
-        status: 'Active'
-      });
-      console.log('[ReturnHome Auth] Seeded default administrator: admin@returnhome.gov.in');
+        password: 'AdminPassword123!',
+        role: 'Admin' as const,
+        organization: 'ReturnHome Central Command'
+      },
+      {
+        name: 'Officer Ananya Sen',
+        email: 'investigator@returnhome.gov.in',
+        password: 'Investigator123!',
+        role: 'Investigator' as const,
+        organization: 'Crime Branch Investigation Division'
+      },
+      {
+        name: 'Officer Ananya Sen',
+        email: 'ananya.sen@returnhome.gov.in',
+        password: 'Investigator123!',
+        role: 'Investigator' as const,
+        organization: 'Crime Branch Investigation Division'
+      },
+      {
+        name: 'Priya Sharma',
+        email: 'citizen@returnhome.gov.in',
+        password: 'Citizen123!',
+        role: 'Citizen' as const,
+        organization: 'Citizen Reporting'
+      }
+    ];
+
+    for (const acc of seedAccounts) {
+      const existing = await UserService.findByEmail(acc.email);
+      if (!existing) {
+        const passwordHash = await bcrypt.hash(acc.password, 10);
+        await UserService.create({
+          name: acc.name,
+          email: acc.email,
+          passwordHash,
+          role: acc.role,
+          organization: acc.organization,
+          status: 'Active'
+        });
+        console.log(`[ReturnHome Auth] Seeded default user: ${acc.email} (${acc.role})`);
+      }
     }
   } catch (err: any) {
-    console.warn('[ReturnHome Auth] Could not ensure default admin:', err.message);
+    console.warn('[ReturnHome Auth] Could not ensure default users:', err.message);
   }
 };
 
 // Start Server
 export const startServer = async () => {
   await connectDB();
-  await ensureDefaultAdmin();
+  await ensureDefaultUsers();
   return server.listen(PORT, () => {
     console.log(`
 ================================================================

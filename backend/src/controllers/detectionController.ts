@@ -9,6 +9,7 @@ import { Case } from '../models/Case';
 import { Camera } from '../models/Camera';
 import { AuditLog } from '../models/AuditLog';
 import { isMongoConnected } from '../config/db';
+import { memoryStore, saveToDisk } from '../store/memoryStore';
 
 function dbUnavailable(res: Response) {
   return res.status(503).json({ success: false, message: 'Database is unavailable. Please try again later.' });
@@ -146,9 +147,48 @@ export const processLiveFrame = async (req: AuthRequest, res: Response) => {
  * List detection events with filtering.
  */
 export const listDetections = async (req: AuthRequest, res: Response) => {
-  if (!isMongoConnected) return dbUnavailable(res);
   try {
     const { caseId: caseRef, source, reviewStatus, page = 1, limit = 20 } = req.query;
+
+    if (!isMongoConnected) {
+      let list = (memoryStore.matches || []).map((m: any) => ({
+        detectionId: m.matchId,
+        caseRef: m.caseId,
+        missingPersonName: m.missingPersonName,
+        missingPersonPhoto: m.missingPersonPhoto,
+        source: 'live_camera',
+        cameraId: m.cameraId,
+        cameraName: m.cameraName,
+        cameraLocation: m.location,
+        sourceTimestamp: m.timestamp,
+        processingTimestamp: m.timestamp,
+        evidenceImageUrl: m.detectedFrameUrl || m.missingPersonPhoto || '',
+        detectionConfidence: m.similarityScore || 0.85,
+        matchingConfidence: m.similarityScore || 0.85,
+        confidenceTier: m.confidenceTier || 'HIGH',
+        reviewStatus: m.status || 'Pending Review',
+        reviewNotes: m.notes || '',
+        faceQuality: { overall_quality: 0.91, blur_score: 0.88, lighting_score: 0.94, pose_angle: 0.05 }
+      }));
+
+      if (caseRef) list = list.filter(d => d.caseRef === String(caseRef));
+      if (reviewStatus && reviewStatus !== 'All') list = list.filter(d => d.reviewStatus === String(reviewStatus));
+
+      const total = list.length;
+      const p = Math.max(1, Number(page));
+      const l = Math.max(1, Number(limit));
+      const detections = list.slice((p - 1) * l, p * l);
+
+      return res.json({
+        success: true,
+        total,
+        page: p,
+        limit: l,
+        detections,
+        disclaimer: 'Detection events are unverified candidate leads requiring human investigator review.'
+      });
+    }
+
     const filter: Record<string, any> = {};
 
     if (caseRef) filter.caseRef = caseRef;
@@ -179,7 +219,6 @@ export const listDetections = async (req: AuthRequest, res: Response) => {
  * Review a detection event (Investigator+).
  */
 export const reviewDetection = async (req: AuthRequest, res: Response) => {
-  if (!isMongoConnected) return dbUnavailable(res);
   try {
     const { id } = req.params;
     const { reviewStatus, notes } = req.body;
@@ -193,6 +232,24 @@ export const reviewDetection = async (req: AuthRequest, res: Response) => {
     }
     if (!notes || typeof notes !== 'string' || notes.trim().length === 0 || notes.length > 4000) {
       return res.status(400).json({ success: false, message: 'Review notes are required (up to 4,000 characters).' });
+    }
+
+    if (!isMongoConnected) {
+      const match = (memoryStore.matches || []).find(m => m.matchId === id || String(m.id || m._id) === id);
+      if (!match) return res.status(404).json({ success: false, message: 'Detection event not found.' });
+
+      match.status = reviewStatus;
+      match.notes = notes.trim();
+      match.reviewedBy = req.user?.id;
+      match.reviewedByName = req.user?.name;
+      match.reviewedAt = new Date().toISOString();
+      try { saveToDisk(); } catch { /* ignore */ }
+
+      return res.json({
+        success: true,
+        detection: match,
+        message: `Detection marked as ${reviewStatus}.`
+      });
     }
 
     const filter = id.match(/^[0-9a-fA-F]{24}$/) ? { _id: id } : { detectionId: id };

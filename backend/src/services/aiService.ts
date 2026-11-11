@@ -44,14 +44,15 @@ export class AIService {
    * Checks if FastAPI AI microservice is responsive
    */
   static async isServiceOnline(): Promise<boolean> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 1200);
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 1200);
       const res = await fetch(`${AI_SERVICE_URL}/health`, { signal: controller.signal });
-      clearTimeout(timeoutId);
       return res.ok;
     } catch {
       return false;
+    } finally {
+      clearTimeout(timeoutId);
     }
   }
 

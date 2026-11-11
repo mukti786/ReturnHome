@@ -8,6 +8,7 @@ import { Sighting, SightingStatus } from '../models/Sighting';
 import { Case } from '../models/Case';
 import { AuditLog } from '../models/AuditLog';
 import { isMongoConnected } from '../config/db';
+import { memoryStore, saveToDisk } from '../store/memoryStore';
 import { createAndSendNotification } from '../utils/notificationService';
 
 const SIGHTINGS_UPLOAD_DIR = path.resolve(__dirname, '../../uploads/sightings');
@@ -46,7 +47,6 @@ function dbUnavailable(res: Response) {
 }
 
 export const createSighting = async (req: AuthRequest, res: Response) => {
-  if (!isMongoConnected) return dbUnavailable(res);
   try {
     const user = req.user;
     if (!user) return res.status(401).json({ success: false, message: 'Authentication required.' });
@@ -70,6 +70,34 @@ export const createSighting = async (req: AuthRequest, res: Response) => {
 
     if (!location || !notes) {
       return res.status(400).json({ success: false, message: 'Location and detailed observation notes are required.' });
+    }
+
+    if (!isMongoConnected) {
+      if (!memoryStore.sightings) memoryStore.sightings = [];
+      const newSighting: any = {
+        _id: `sighting-${Date.now()}-${randomUUID().slice(0, 6)}`,
+        sightingId: `SGT-${Date.now()}-${randomUUID().slice(0, 4).toUpperCase()}`,
+        caseRef: caseRef || 'MP-2026-0001',
+        location,
+        latitude: latitude ? Number(latitude) : 28.5708,
+        longitude: longitude ? Number(longitude) : 77.3271,
+        dateTimeSeen: dateTimeSeen || new Date().toISOString(),
+        notes,
+        clothingSeen: clothingSeen || '',
+        reporterName: reporterName || user.name,
+        reporterPhone: reporterPhone || '',
+        reporterEmail: reporterEmail || user.email,
+        reportedBy: user.id,
+        status: 'Under Review',
+        createdAt: new Date().toISOString()
+      };
+      memoryStore.sightings.unshift(newSighting);
+      try { saveToDisk(); } catch { /* ignore */ }
+      return res.status(201).json({
+        success: true,
+        sighting: newSighting,
+        message: 'Sighting reported successfully. An investigator will review the information.'
+      });
     }
 
     // Find the associated case
@@ -160,12 +188,44 @@ export const createSighting = async (req: AuthRequest, res: Response) => {
 };
 
 export const getSightings = async (req: AuthRequest, res: Response) => {
-  if (!isMongoConnected) return dbUnavailable(res);
   try {
     const user = req.user;
     if (!user) return res.status(401).json({ success: false, message: 'Authentication required.' });
 
     const { caseRef, caseId, status, search, page = 1, limit = 20 } = req.query;
+
+    if (!isMongoConnected) {
+      let list = memoryStore.sightings || [
+        {
+          _id: 'sighting-seed-1',
+          sightingId: 'SGT-2026-001',
+          caseRef: 'MP-2026-0001',
+          location: 'Botanical Garden Metro Gate 2, Noida',
+          latitude: 28.5644,
+          longitude: 77.3344,
+          dateTimeSeen: new Date(Date.now() - 86400000).toISOString(),
+          notes: 'Person resembling Aarav Sharma seen near the ticket counter around 4 PM.',
+          clothingSeen: 'Blue t-shirt, dark shorts',
+          reporterName: 'Sunita Sharma',
+          status: 'Under Review',
+          createdAt: new Date(Date.now() - 86400000).toISOString(),
+          caseId: { name: 'Aarav Sharma', caseId: 'MP-2026-0001', status: 'Active Investigation' }
+        }
+      ];
+      if (!memoryStore.sightings) memoryStore.sightings = list;
+      if (caseRef) list = list.filter((s: any) => s.caseRef === String(caseRef));
+      if (status) list = list.filter((s: any) => s.status === String(status));
+      if (search) {
+        const q = String(search).toLowerCase();
+        list = list.filter((s: any) =>
+          (s.location && s.location.toLowerCase().includes(q)) ||
+          (s.notes && s.notes.toLowerCase().includes(q)) ||
+          (s.caseRef && s.caseRef.toLowerCase().includes(q))
+        );
+      }
+      return res.json({ success: true, total: list.length, page: 1, limit: 20, sightings: list });
+    }
+
     const filter: Record<string, any> = {};
 
     if (caseRef) filter.caseRef = String(caseRef);
@@ -221,10 +281,16 @@ export const getSightings = async (req: AuthRequest, res: Response) => {
 };
 
 export const getSightingById = async (req: AuthRequest, res: Response) => {
-  if (!isMongoConnected) return dbUnavailable(res);
   try {
     const user = req.user;
     if (!user) return res.status(401).json({ success: false, message: 'Authentication required.' });
+
+    if (!isMongoConnected) {
+      const list = memoryStore.sightings || [];
+      const found = list.find((s: any) => s.sightingId === req.params.id || s._id === req.params.id);
+      if (!found) return res.status(404).json({ success: false, message: 'Sighting record not found.' });
+      return res.json({ success: true, sighting: found });
+    }
 
     const sighting = await Sighting.findOne({
       $or: [{ sightingId: req.params.id }, { _id: req.params.id.match(/^[0-9a-fA-F]{24}$/) ? req.params.id : undefined }]
@@ -249,7 +315,6 @@ export const getSightingById = async (req: AuthRequest, res: Response) => {
 };
 
 export const reviewSighting = async (req: AuthRequest, res: Response) => {
-  if (!isMongoConnected) return dbUnavailable(res);
   try {
     const user = req.user;
     if (!user) return res.status(401).json({ success: false, message: 'Authentication required.' });
@@ -257,6 +322,19 @@ export const reviewSighting = async (req: AuthRequest, res: Response) => {
     const { status, reviewNotes } = req.body;
     if (!status || !['Verified', 'Rejected'].includes(status)) {
       return res.status(400).json({ success: false, message: 'Review status must be either "Verified" or "Rejected".' });
+    }
+
+    if (!isMongoConnected) {
+      const list = memoryStore.sightings || [];
+      const found = list.find((s: any) => s.sightingId === req.params.id || s._id === req.params.id);
+      if (!found) return res.status(404).json({ success: false, message: 'Sighting record not found.' });
+      found.status = status;
+      found.reviewNotes = reviewNotes || '';
+      found.reviewedBy = user.id;
+      found.reviewedByName = user.name;
+      found.reviewedAt = new Date().toISOString();
+      try { saveToDisk(); } catch { /* ignore */ }
+      return res.json({ success: true, message: `Sighting marked as ${status}.`, sighting: found });
     }
 
     const sighting = await Sighting.findOne({

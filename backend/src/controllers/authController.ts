@@ -5,7 +5,7 @@ import { AuthRequest } from '../middleware/authMiddleware';
 import { isMongoConnected } from '../config/db';
 import { AuditLog } from '../models/AuditLog';
 import { UserService, UserRecord } from '../services/userService';
-import { UserRole } from '../models/User';
+import { User, UserRole } from '../models/User';
 
 const SESSION_COOKIE = 'returnhome_session';
 const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
@@ -58,8 +58,30 @@ const writeAuditLog = async (data: {
 
 export const devLogin = async (req: Request, res: Response) => {
   const secret = authSecret();
+  const requestedRole = (req.body?.role as string) || (req.query?.role as string) || 'Investigator';
+  const role: UserRole = ['Admin', 'Investigator', 'Citizen', 'Analyst'].includes(requestedRole as any)
+    ? (requestedRole as UserRole)
+    : 'Investigator';
+
+  let sub = 'usr-dev-demo';
+  let name = 'Officer Ananya Sen';
+  let email = 'demo.investigator@returnhome.gov.in';
+  let organization = 'Special Missing Persons Unit';
+
+  if (role === 'Citizen') {
+    sub = 'usr-demo-citizen';
+    name = 'Priya Sharma';
+    email = 'citizen.demo@returnhome.gov.in';
+    organization = 'Citizen Reporting';
+  } else if (role === 'Admin') {
+    sub = 'usr-demo-admin';
+    name = 'Inspector Vikram Singh';
+    email = 'admin.demo@returnhome.gov.in';
+    organization = 'ReturnHome Central Command';
+  }
+
   const token = jwt.sign(
-    { sub: 'usr-dev-demo', role: 'Investigator', sessionVersion: 0, isDemo: true },
+    { sub, role, sessionVersion: 0, isDemo: true },
     secret,
     { expiresIn: '8h', issuer: 'returnhome', audience: 'returnhome-web' }
   );
@@ -70,11 +92,11 @@ export const devLogin = async (req: Request, res: Response) => {
     success: true,
     token,
     user: {
-      id: 'usr-dev-demo',
-      name: 'Local Demo Investigator',
-      email: 'demo.investigator@returnhome.gov.in',
-      role: 'Investigator',
-      organization: 'Local Development Testing Unit',
+      id: sub,
+      name,
+      email,
+      role,
+      organization,
       status: 'Active',
       createdAt: new Date().toISOString(),
       isDemo: true
@@ -608,5 +630,105 @@ export const deactivateUser = async (req: AuthRequest, res: Response) => {
     });
   } catch (error: any) {
     return res.status(500).json({ success: false, message: error.message || 'Failed to deactivate user.' });
+  }
+};
+
+// Update own profile
+export const updateProfile = async (req: AuthRequest, res: Response) => {
+  const allowedFields = ['name', 'organization', 'phone', 'bio'];
+  const updates: Record<string, any> = {};
+
+  for (const field of allowedFields) {
+    if (req.body[field] !== undefined) {
+      const val = typeof req.body[field] === 'string' ? req.body[field].trim() : req.body[field];
+      updates[field] = val;
+    }
+  }
+
+  if (updates.name !== undefined && (!updates.name || updates.name.length > 100)) {
+    return res.status(400).json({ success: false, message: 'Name must be 1–100 characters.' });
+  }
+
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ success: false, message: 'Sign in to continue.' });
+
+    const user = await UserService.update(userId, updates);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found.' });
+
+    await writeAuditLog({
+      userId: user.id,
+      userName: user.name,
+      userRole: user.role,
+      action: 'UPDATE_PROFILE',
+      resource: 'Users',
+      resourceId: user.id,
+      ipAddress: req.ip || 'unknown',
+      details: `User updated profile fields: ${Object.keys(updates).join(', ')}`
+    });
+
+    return res.json({ success: true, user: publicUser(user) });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message || 'Failed to update profile.' });
+  }
+};
+
+// Change own password
+export const changePassword = async (req: AuthRequest, res: Response) => {
+  const currentPassword = typeof req.body.currentPassword === 'string' ? req.body.currentPassword : '';
+  const newPassword = typeof req.body.newPassword === 'string' ? req.body.newPassword : '';
+
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ success: false, message: 'Enter your current and new passwords.' });
+  }
+  if (newPassword.length < 8 || newPassword.length > 128) {
+    return res.status(400).json({ success: false, message: 'New password must be 8–128 characters.' });
+  }
+
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ success: false, message: 'Sign in to continue.' });
+
+    const user = await UserService.findById(userId);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found.' });
+
+    // Fetch password hash
+    let storedHash = user.passwordHash;
+    if (!storedHash && isMongoConnected) {
+      const doc = await User.findById(userId).select('+passwordHash');
+      storedHash = doc?.passwordHash;
+    }
+
+    if (storedHash) {
+      const matches = await bcrypt.compare(currentPassword, storedHash);
+      if (!matches) {
+        return res.status(401).json({ success: false, message: 'Current password is incorrect.' });
+      }
+    }
+
+    const hash = await bcrypt.hash(newPassword, 12);
+    await UserService.update(userId, { passwordHash: hash });
+    await UserService.incrementSession(userId);
+
+    await writeAuditLog({
+      userId: user.id,
+      userName: user.name,
+      userRole: user.role,
+      action: 'PASSWORD_CHANGE',
+      resource: 'Auth',
+      ipAddress: req.ip || 'unknown',
+      details: 'User changed their password. All sessions invalidated.'
+    });
+
+    res.clearCookie(SESSION_COOKIE, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/'
+    });
+
+    return res.json({ success: true, message: 'Password changed. Please sign in again.' });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message || 'Failed to change password.' });
   }
 };

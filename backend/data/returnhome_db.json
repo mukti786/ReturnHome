@@ -35,6 +35,71 @@
       "organization": "Child Rescue Alliance NGO",
       "status": "Active",
       "createdAt": "2026-04-05T11:00:00.000Z"
+    },
+    {
+      "id": "usr-1794417901955-c5e7cd",
+      "name": "Citizen Alice",
+      "email": "citizen.1794417901130@example.com",
+      "passwordHash": "$2a$10$h/zzfhQBBkKFBJekej/fX.jpHf9eep/IbQhXtSDD4/gjxPxvzccoa",
+      "role": "Citizen",
+      "organization": "",
+      "phone": "+15550192834",
+      "status": "Active",
+      "avatarUrl": "",
+      "sessionVersion": 0,
+      "createdAt": "2026-11-11T17:25:01.958Z"
+    },
+    {
+      "id": "usr-1794418172943-5a5a2b",
+      "name": "Administrator Vikram Singh",
+      "email": "admin@returnhome.gov.in",
+      "passwordHash": "$2a$10$wYQKBUtRYprMUDE7l5YgCOmG/8O2z9kiMMgMrXTIzy65mm2h24cbW",
+      "role": "Admin",
+      "organization": "ReturnHome Central Command",
+      "phone": "",
+      "status": "Active",
+      "avatarUrl": "",
+      "sessionVersion": 0,
+      "createdAt": "2026-11-11T17:29:32.943Z"
+    },
+    {
+      "id": "usr-1794418173065-6eae7b",
+      "name": "Officer Ananya Sen",
+      "email": "investigator@returnhome.gov.in",
+      "passwordHash": "$2a$10$ddAzLMYh9SuyfmqTnPIT1upOubI6L9z0.MHs.4JsEKV4Mhm51IZEG",
+      "role": "Investigator",
+      "organization": "Crime Branch Investigation Division",
+      "phone": "",
+      "status": "Active",
+      "avatarUrl": "",
+      "sessionVersion": 0,
+      "createdAt": "2026-11-11T17:29:33.065Z"
+    },
+    {
+      "id": "usr-1794418173178-59a460",
+      "name": "Priya Sharma",
+      "email": "citizen@returnhome.gov.in",
+      "passwordHash": "$2a$10$7xAAqeBLpWzqhbNhYe0z4.RrT5ciF3yUqXVOpO5pK8AXPu.iSe0lS",
+      "role": "Citizen",
+      "organization": "Citizen Reporting",
+      "phone": "",
+      "status": "Active",
+      "avatarUrl": "",
+      "sessionVersion": 0,
+      "createdAt": "2026-11-11T17:29:33.178Z"
+    },
+    {
+      "id": "usr-1794418846039-ff7cf2",
+      "name": "Citizen Alice",
+      "email": "citizen.1794418845715@example.com",
+      "passwordHash": "$2a$10$P1/wtUpXVsex2ebD8LUaaeMtrqdfj4ao3.iVpaeks3xKu6mymgusG",
+      "role": "Citizen",
+      "organization": "",
+      "phone": "+15550192834",
+      "status": "Active",
+      "avatarUrl": "",
+      "sessionVersion": 0,
+      "createdAt": "2026-11-11T17:40:46.039Z"
     }
   ],
   "cases": [
@@ -1901,5 +1966,7 @@
       "timestamp": "2026-09-07T16:20:00.000Z"
     }
   ],
-  "reports": []
+  "reports": [],
+  "sightings": [],
+  "videoJobs": []
 }

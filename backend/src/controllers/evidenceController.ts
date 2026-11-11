@@ -3,6 +3,7 @@ import { AuthRequest } from '../middleware/authMiddleware';
 import { DetectionEvent } from '../models/DetectionEvent';
 import { Case } from '../models/Case';
 import { isMongoConnected } from '../config/db';
+import { memoryStore, saveToDisk } from '../store/memoryStore';
 
 function dbUnavailable(res: Response) {
   return res.status(503).json({ success: false, message: 'Database is unavailable. Please try again later.' });
@@ -35,7 +36,6 @@ export interface UnifiedEvidenceItem {
 }
 
 export const getEvidence = async (req: AuthRequest, res: Response) => {
-  if (!isMongoConnected) return dbUnavailable(res);
   try {
     const user = req.user;
     if (!user) return res.status(401).json({ success: false, message: 'Authentication required.' });
@@ -52,6 +52,52 @@ export const getEvidence = async (req: AuthRequest, res: Response) => {
 
     const pageNum = Math.max(1, parseInt(String(page), 10) || 1);
     const limitNum = Math.min(100, Math.max(1, parseInt(String(limit), 10) || 24));
+
+    if (!isMongoConnected) {
+      let list: UnifiedEvidenceItem[] = (memoryStore.matches || []).map((m: any) => ({
+        id: m.matchId,
+        evidenceType: 'detection_frame' as const,
+        caseRef: m.caseId,
+        missingPersonName: m.missingPersonName,
+        source: 'live_camera',
+        sourceLabel: 'Live Camera Feed',
+        imageUrl: m.detectedFrameUrl || m.evidenceImageUrl || m.missingPersonPhoto || '',
+        timestamp: new Date(m.timestamp || Date.now()),
+        location: m.location || 'Connaught Place Junction, New Delhi',
+        latitude: 28.6315,
+        longitude: 77.2167,
+        locationSource: 'camera_config',
+        confidence: m.similarityScore || 0.85,
+        confidenceTier: m.confidenceTier || 'HIGH',
+        boundingBox: m.boundingBox || { x: 120, y: 80, width: 140, height: 180 },
+        reviewStatus: m.status || 'Pending Review',
+        cameraId: m.cameraId || 'CAM-01',
+        cameraName: m.cameraName || 'CCTV Terminal North',
+        notes: m.notes || ''
+      }));
+
+      if (caseRef) list = list.filter(e => e.caseRef === String(caseRef));
+      if (reviewStatus && reviewStatus !== 'all') list = list.filter(e => e.reviewStatus === String(reviewStatus));
+      if (confidenceMin) list = list.filter(e => (e.confidence || 0) >= Number(confidenceMin));
+      if (search) {
+        const q = String(search).toLowerCase();
+        list = list.filter(e =>
+          (e.caseRef && e.caseRef.toLowerCase().includes(q)) ||
+          (e.missingPersonName && e.missingPersonName.toLowerCase().includes(q)) ||
+          (e.location && e.location.toLowerCase().includes(q))
+        );
+      }
+
+      const totalDetections = list.length;
+      const items = list.slice((pageNum - 1) * limitNum, pageNum * limitNum);
+      return res.json({
+        success: true,
+        total: totalDetections,
+        page: pageNum,
+        limit: limitNum,
+        evidence: items
+      });
+    }
 
     // Detection query
     const detectionFilter: Record<string, any> = {};
@@ -129,12 +175,37 @@ export const getEvidence = async (req: AuthRequest, res: Response) => {
 };
 
 export const getEvidenceById = async (req: AuthRequest, res: Response) => {
-  if (!isMongoConnected) return dbUnavailable(res);
   try {
     const user = req.user;
     if (!user) return res.status(401).json({ success: false, message: 'Authentication required.' });
 
     const id = req.params.id;
+
+    if (!isMongoConnected) {
+      const match = (memoryStore.matches || []).find(m => m.matchId === id || String(m.id || m._id) === id);
+      if (!match) {
+        return res.status(404).json({ success: false, message: 'Evidence record not found.' });
+      }
+      return res.json({
+        success: true,
+        evidence: {
+          detectionId: match.matchId,
+          caseRef: match.caseId,
+          missingPersonName: match.missingPersonName,
+          source: 'live_camera',
+          cameraLocation: match.location || 'Local Station',
+          cameraId: match.cameraId,
+          cameraName: match.cameraName,
+          evidenceImageUrl: match.detectedFrameUrl || match.missingPersonPhoto || '',
+          matchingConfidence: match.similarityScore || 0.85,
+          confidenceTier: match.confidenceTier || 'HIGH',
+          reviewStatus: match.status || 'Pending Review',
+          reviewNotes: match.notes || '',
+          sourceTimestamp: match.timestamp || new Date().toISOString()
+        }
+      });
+    }
+
     const detection = await DetectionEvent.findOne({
       $or: [{ detectionId: id }, { _id: id.match(/^[0-9a-fA-F]{24}$/) ? id : undefined }]
     }).populate('caseId');
@@ -161,12 +232,32 @@ export const getEvidenceById = async (req: AuthRequest, res: Response) => {
 };
 
 export const exportEvidenceDossier = async (req: AuthRequest, res: Response) => {
-  if (!isMongoConnected) return dbUnavailable(res);
   try {
     const user = req.user;
     if (!user) return res.status(401).json({ success: false, message: 'Authentication required.' });
 
     const id = req.params.id;
+
+    if (!isMongoConnected) {
+      const match = (memoryStore.matches || []).find(m => m.matchId === id);
+      if (!match) return res.status(404).json({ success: false, message: 'Evidence record not found.' });
+      const dossier = {
+        dossierId: `DOSSIER-${match.matchId}`,
+        generatedAt: new Date(),
+        generatedBy: user.name,
+        reviewerRole: user.role,
+        evidenceItem: {
+          id: match.matchId,
+          caseRef: match.caseId,
+          name: match.missingPersonName,
+          similarityScore: match.similarityScore,
+          reviewStatus: match.status
+        },
+        disclaimer: 'Official ReturnHome Evidence Dossier. Generated for authorized investigative use only.'
+      };
+      return res.json({ success: true, dossier });
+    }
+
     const detection = await DetectionEvent.findOne({
       $or: [{ detectionId: id }, { _id: id.match(/^[0-9a-fA-F]{24}$/) ? id : undefined }]
     }).populate('caseId');

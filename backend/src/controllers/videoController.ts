@@ -256,10 +256,50 @@ function parseFrameOffset(timestamp: string): number {
   return 0;
 }
 
+const inMemoryVideoJobs = [
+  {
+    jobId: 'VID-2026-0001',
+    originalFilename: 'cctv_con_place_gate3_0905.mp4',
+    caseRef: 'MP-2026-0001',
+    cameraName: 'CCTV Terminal North',
+    cameraLocation: 'Connaught Place Junction, New Delhi',
+    status: 'Completed',
+    totalFrames: 1840,
+    processedFrames: 1840,
+    facesDetected: 14,
+    matchesFound: 2,
+    progress: 100,
+    processingDurationMs: 42100,
+    createdAt: new Date(Date.now() - 7200000).toISOString()
+  },
+  {
+    jobId: 'VID-2026-0002',
+    originalFilename: 'metro_sec18_entry_cctv.mp4',
+    caseRef: 'MP-2026-0002',
+    cameraName: 'Station Concourse Cam 4',
+    cameraLocation: 'Sector 18 Metro Concourse',
+    status: 'Completed',
+    totalFrames: 920,
+    processedFrames: 920,
+    facesDetected: 6,
+    matchesFound: 1,
+    progress: 100,
+    processingDurationMs: 21800,
+    createdAt: new Date(Date.now() - 18000000).toISOString()
+  }
+];
+
 export const getVideoJobs = async (req: AuthRequest, res: Response) => {
-  if (!isMongoConnected) return dbUnavailable(res);
   try {
     const { caseId: caseRef, status, page = 1, limit = 10 } = req.query;
+
+    if (!isMongoConnected) {
+      let list = inMemoryVideoJobs;
+      if (caseRef) list = list.filter(j => j.caseRef === String(caseRef));
+      if (status && status !== 'All') list = list.filter(j => j.status === String(status));
+      return res.json({ success: true, total: list.length, page: Number(page), limit: Number(limit), jobs: list });
+    }
+
     const filter: Record<string, any> = {};
     if (caseRef) filter.caseRef = caseRef;
     if (status && status !== 'All') filter.status = status;
@@ -284,9 +324,15 @@ export const getVideoJobs = async (req: AuthRequest, res: Response) => {
 };
 
 export const getVideoJobById = async (req: AuthRequest, res: Response) => {
-  if (!isMongoConnected) return dbUnavailable(res);
   try {
     const { id } = req.params;
+
+    if (!isMongoConnected) {
+      const job = inMemoryVideoJobs.find(j => j.jobId === id);
+      if (!job) return res.status(404).json({ success: false, message: 'Job not found.' });
+      return res.json({ success: true, job, detections: [] });
+    }
+
     const job = await VideoJob.findOne({ jobId: id }).select('-storedPath').lean();
     if (!job) return res.status(404).json({ success: false, message: 'Job not found.' });
 

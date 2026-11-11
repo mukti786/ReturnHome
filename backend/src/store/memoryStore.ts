@@ -26,6 +26,8 @@ export interface SeedData {
   timeline: any[];
   auditLogs: any[];
   reports: any[];
+  sightings?: any[];
+  videoJobs?: any[];
 }
 
 const DB_PATH = path.resolve(__dirname, '../../data/returnhome_db.json');
@@ -420,6 +422,8 @@ function loadDatabase(): SeedData {
         timeline: parsed.timeline || initialMemoryStore.timeline,
         auditLogs: parsed.auditLogs || initialMemoryStore.auditLogs,
         reports: parsed.reports || initialMemoryStore.reports,
+        sightings: parsed.sightings || [],
+        videoJobs: parsed.videoJobs || [],
       };
     }
   } catch (err: any) {

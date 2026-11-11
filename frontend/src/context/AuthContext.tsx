@@ -12,7 +12,7 @@ interface AuthContextType {
   authStartupError: string;
   login: (email: string, pass: string) => Promise<boolean>;
   loginGoogle: (credential: string, role?: string, organization?: string) => Promise<string | void>;
-  loginDemo: () => Promise<void>;
+  loginDemo: (role?: string) => Promise<void>;
   register: (user: { name: string; email: string; organization?: string; password: string; phone?: string }) => Promise<string>;
   registerCitizen: (user: { name: string; email: string; password: string; phone?: string }) => Promise<string>;
   logout: () => Promise<void>;
@@ -85,12 +85,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const loginDemo = async () => {
+  const loginDemo = async (role: string = 'Investigator') => {
     setIsLoading(true);
     try {
-      const result = await apiService.devLogin();
+      const result = await apiService.devLogin(role);
       setUser(result.user);
       setIsDemoMode(true);
+      setAuthStartupError('');
     } finally {
       setIsLoading(false);
     }

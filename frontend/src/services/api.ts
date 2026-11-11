@@ -75,8 +75,11 @@ export const apiService = {
     return res;
   },
 
-  async devLogin() {
-    const res = await fetchAPI<{ success: boolean; user: User; token?: string }>('/auth/dev-login', { method: 'POST' });
+  async devLogin(role: string = 'Investigator') {
+    const res = await fetchAPI<{ success: boolean; user: User; token?: string }>('/auth/dev-login', {
+      method: 'POST',
+      body: JSON.stringify({ role }),
+    });
     if (res.token) {
       localStorage.setItem('returnhome_token', res.token);
     }

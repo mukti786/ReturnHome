@@ -36,8 +36,8 @@ export class UserService {
         if (doc) {
           return {
             ...doc,
-            id: String(doc._id)
-          } as UserRecord;
+            id: String((doc as any)._id)
+          } as unknown as UserRecord;
         }
       } catch (err) {
         console.warn('[ReturnHome UserService] Mongo findByEmail failed, using memory fallback:', err);
@@ -62,8 +62,8 @@ export class UserService {
         if (doc) {
           return {
             ...doc,
-            id: String(doc._id)
-          } as UserRecord;
+            id: String((doc as any)._id)
+          } as unknown as UserRecord;
         }
       } catch (err) {
         console.warn('[ReturnHome UserService] Mongo findById failed, using memory fallback:', err);
@@ -87,8 +87,8 @@ export class UserService {
         if (doc) {
           return {
             ...doc,
-            id: String(doc._id)
-          } as UserRecord;
+            id: String((doc as any)._id)
+          } as unknown as UserRecord;
         }
       } catch (err) {
         console.warn('[ReturnHome UserService] Mongo findByGoogleId failed, using memory fallback:', err);
@@ -133,8 +133,8 @@ export class UserService {
         const obj = user.toObject();
         return {
           ...obj,
-          id: String(obj._id)
-        } as UserRecord;
+          id: String((obj as any)._id)
+        } as unknown as UserRecord;
       } catch (err: any) {
         if (err.code === 11000) {
           const duplicateError: any = new Error('An account with this email already exists.');
@@ -184,8 +184,8 @@ export class UserService {
         if (doc) {
           return {
             ...doc,
-            id: String(doc._id)
-          } as UserRecord;
+            id: String((doc as any)._id)
+          } as unknown as UserRecord;
         }
       } catch (err) {
         console.warn('[ReturnHome UserService] Mongo update failed, using memory fallback:', err);
