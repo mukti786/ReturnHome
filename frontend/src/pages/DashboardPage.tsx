@@ -5,9 +5,7 @@ import {
   ShieldAlert, Users, Eye, FolderKanban, Camera, Video, MapPin,
   Calendar, FileText, CheckCircle, AlertCircle
 } from 'lucide-react';
-import Sidebar from '../components/layout/Sidebar';
-import Navbar from '../components/layout/Navbar';
-import Footer from '../components/layout/Footer';
+import Layout from '../components/layout/Layout';
 import BrandDisclaimer from '../components/branding/BrandDisclaimer';
 import { apiService } from '../services/api';
 import { MissingPersonCase, CandidateMatch, TimelineEvent, DashboardStats, SightingItem } from '../types';
@@ -90,11 +88,7 @@ export const DashboardPage: React.FC = () => {
   ];
 
   return (
-    <div className="flex min-h-screen bg-slate-50 text-slate-900">
-      <Sidebar />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <Navbar />
-        <main className="mx-auto w-full max-w-[1600px] flex-1 space-y-6 overflow-y-auto p-4 sm:p-6 lg:p-8">
+    <Layout>
           {/* Header */}
           <header className="flex flex-col justify-between gap-5 border-b border-slate-200 pb-6 sm:flex-row sm:items-end">
             <div>
@@ -113,10 +107,10 @@ export const DashboardPage: React.FC = () => {
             <div className="flex flex-wrap gap-2.5">
               <button
                 type="button"
-                onClick={() => navigate('/cases/new')}
+                onClick={() => navigate(isCitizen ? '/public-report' : '/cases/new')}
                 className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-[#1d5147] px-4 py-2.5 text-xs font-semibold text-white hover:bg-[#163f37] transition-colors shadow-sm"
               >
-                <Plus size={15} /> Report Missing Person
+                <Plus size={15} /> {isCitizen ? 'Report a Missing Person' : 'Register Missing Person'}
               </button>
               <button
                 type="button"
@@ -465,10 +459,7 @@ export const DashboardPage: React.FC = () => {
               ReturnHome operates strictly with human-in-the-loop review. Face detection similarities and video candidate leads are investigative leads and must never replace formal law enforcement identity confirmation.
             </p>
           </div>
-        </main>
-        <Footer />
-      </div>
-    </div>
+    </Layout>
   );
 };
 

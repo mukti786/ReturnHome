@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { LogOut, Bell, Check, ExternalLink, Shield, User, ArrowLeftRight } from 'lucide-react';
-import { useNavigate, Link } from 'react-router-dom';
+import { LogOut, Bell, Check, ExternalLink, Shield, User, ArrowLeftRight, Menu } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { apiService } from '../../services/api';
 import { NotificationItem } from '../../types';
@@ -115,14 +115,17 @@ export const Navbar: React.FC = () => {
   const isCitizen = user?.role === 'Citizen';
 
   return (
-    <header className="sticky top-0 z-20 flex min-h-16 items-center justify-between border-b border-slate-200 bg-white px-4 sm:px-6 shadow-xs">
-      <div className="flex items-center gap-3">
+    <header className="sticky top-0 z-20 flex min-h-16 items-center justify-between gap-2 border-b border-slate-200 bg-white px-3 shadow-xs sm:px-6">
+      <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+        <button type="button" onClick={() => window.dispatchEvent(new Event('returnhome:open-navigation'))} className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-slate-800 lg:hidden" aria-label="Open workspace navigation menu">
+          <Menu size={18} />
+        </button>
         <div className={`grid h-8 w-8 place-items-center rounded-lg ${isCitizen ? 'bg-blue-50 text-blue-700' : 'bg-slate-900 text-white'}`}>
           {isCitizen ? <User size={16} /> : <Shield size={16} />}
         </div>
         <div>
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-slate-900">
+          <div className="flex min-w-0 flex-wrap items-center gap-1.5 sm:gap-2">
+            <span className="truncate text-xs font-semibold text-slate-900 sm:text-sm">
               {isCitizen ? 'Citizen Portal' : 'Investigator Workspace'}
             </span>
             <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium border ${
@@ -147,8 +150,8 @@ export const Navbar: React.FC = () => {
       </div>
 
       <div className="flex items-center gap-2 sm:gap-3">
-        {/* Quick Demo Workspace Switcher Pill */}
-        <button
+        {/* Switching identities is only available in the explicitly marked local demo. */}
+        {user?.isDemo && import.meta.env.DEV && <button
           type="button"
           onClick={handleToggleWorkspace}
           disabled={switchingRole}
@@ -160,7 +163,7 @@ export const Navbar: React.FC = () => {
             Switch to {isCitizen ? 'Investigator' : 'Citizen'} View
           </span>
           <span className="md:hidden">Switch</span>
-        </button>
+        </button>}
 
         {/* Notifications Dropdown */}
         <div className="relative" ref={dropdownRef}>
