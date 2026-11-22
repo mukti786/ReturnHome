@@ -6,6 +6,7 @@ import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
 import BrandDisclaimer from '../components/branding/BrandDisclaimer';
 import LogoMark from '../components/branding/LogoMark';
+import EmptyState from '../components/EmptyState';
 import { apiService } from '../services/api';
 import { MissingPersonCase } from '../types';
 import { PublicReportItem } from '../types';
@@ -99,7 +100,7 @@ export const MissingPersonsPage: React.FC = () => {
               <span className="w-fit rounded-full bg-teal-50 px-3 py-1 text-xs font-semibold text-teal-800">{publicReportsLoading ? 'Loading…' : `${filteredPublicReports.length} shown`}</span>
             </div>
             <label className="block max-w-xl text-xs font-semibold text-slate-600">Search reports by name, reference, or location<input type="search" value={publicReportSearch} onChange={(event) => setPublicReportSearch(event.target.value)} className="mt-1.5 min-h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm font-normal text-slate-900 outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-600/20" /></label>
-            {publicReportError ? <p role="alert" className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Could not load the public report queue: {publicReportError}</p> : publicReportsLoading ? <p role="status" className="rounded-xl border border-slate-200 p-5 text-sm text-slate-500">Loading reports…</p> : publicReports.length === 0 ? <p className="rounded-xl border border-dashed border-slate-300 p-5 text-sm text-slate-500">No public reports are available yet. New submissions appear here after they are saved successfully.</p> : filteredPublicReports.length === 0 ? <p className="rounded-xl border border-dashed border-slate-300 p-5 text-sm text-slate-500">No public reports match “{publicReportSearch}”.</p> :
+            {publicReportError ? <p role="alert" className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Could not load the public report queue: {publicReportError}</p> : publicReportsLoading ? <p role="status" className="rounded-xl border border-slate-200 p-5 text-sm text-slate-500">Loading reports…</p> : publicReports.length === 0 ? <EmptyState icon={<Eye size={20} />} title="No reports are waiting for review" description="New public submissions will appear in this queue after they are saved successfully." className="py-6" /> : filteredPublicReports.length === 0 ? <EmptyState icon={<Search size={20} />} title="No reports match this search" description="Try another name, reference, or location, or clear the search field to see all reports." className="py-6" /> :
               <div className="grid gap-3 lg:grid-cols-2">{filteredPublicReports.map((report) => <article key={report._id} className="flex gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
                 {report.missingPerson.photoUrl ? <img src={report.missingPerson.photoUrl} alt={`Submitted photo of ${report.missingPerson.fullName}`} className="h-20 w-20 shrink-0 rounded-lg border border-slate-200 object-cover" /> : <div className="grid h-20 w-20 shrink-0 place-items-center rounded-lg bg-slate-200 text-xs text-slate-500">No photo</div>}
                 <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-semibold text-slate-900">{report.missingPerson.fullName}</h3><span className="rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-bold text-amber-900">{report.status}</span></div>
@@ -203,7 +204,7 @@ export const MissingPersonsPage: React.FC = () => {
               <tbody className="divide-y divide-slate-100">
                 {casesLoading && <tr><td colSpan={10} className="py-8 text-center text-sm text-slate-500">Loading case records…</td></tr>}
                 {!casesLoading && casesError && <tr><td colSpan={10} className="py-8 text-center text-sm text-rose-700" role="alert">Could not load case records: {casesError}</td></tr>}
-                {!casesLoading && !casesError && cases.length === 0 && <tr><td colSpan={10} className="py-8 text-center text-sm text-slate-500">No case records match these filters.</td></tr>}
+                {!casesLoading && !casesError && cases.length === 0 && <tr><td colSpan={10} className="p-3"><EmptyState icon={<Search size={20} />} title="No cases match these filters" description="Try a different search term or broaden the status, priority, or gender filters." className="border-0 bg-transparent" /></td></tr>}
                 {!casesLoading && !casesError && cases.map((c) => (
                   <tr key={c.caseId} className="hover:bg-slate-50 transition-colors">
                     <td className="py-3.5 px-3 font-mono font-extrabold text-indigo-700">{c.caseId}</td>

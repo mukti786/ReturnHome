@@ -6,6 +6,7 @@ import {
   Calendar, FileText, CheckCircle, AlertCircle
 } from 'lucide-react';
 import Layout from '../components/layout/Layout';
+import EmptyState from '../components/EmptyState';
 import BrandDisclaimer from '../components/branding/BrandDisclaimer';
 import { apiService } from '../services/api';
 import { MissingPersonCase, CandidateMatch, TimelineEvent, DashboardStats, SightingItem } from '../types';
@@ -240,10 +241,13 @@ export const DashboardPage: React.FC = () => {
                 {loading ? (
                   <div className="py-8 text-center text-xs text-slate-500">Loading your sighting reports…</div>
                 ) : mySightings.length === 0 ? (
-                  <div className="py-8 text-center text-xs text-slate-500">
-                    You haven't reported any sightings yet. Have you seen someone from the public cases?{' '}
-                    <Link to="/sightings/new" className="font-semibold text-[#356a5a] hover:underline">Submit a sighting</Link>.
-                  </div>
+                  <EmptyState
+                    icon={<Eye size={20} />}
+                    title="No sighting reports yet"
+                    description="If you have seen someone listed in the public cases, share what you observed so investigators can review it."
+                    action={<Link to="/sightings/new" className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg bg-[#356a5a] px-4 text-xs font-semibold text-white hover:bg-[#2b5548]"><Plus size={14} /> Submit a sighting</Link>}
+                    className="mt-4"
+                  />
                 ) : (
                   <div className="mt-4 divide-y divide-slate-100">
                     {mySightings.map((s) => (
@@ -334,7 +338,7 @@ export const DashboardPage: React.FC = () => {
                           <tr><td colSpan={5} className="px-5 py-8 text-center text-xs text-slate-500">Loading cases…</td></tr>
                         )}
                         {!loading && !recentCases.length && (
-                          <tr><td colSpan={5} className="px-5 py-8 text-center text-xs text-slate-500">No active cases registered.</td></tr>
+                          <tr><td colSpan={5} className="px-3 py-3"><EmptyState icon={<FolderKanban size={20} />} title="No active cases to show" description="Newly registered missing person cases will appear here for review." className="border-0 bg-transparent" /></td></tr>
                         )}
                         {!loading && recentCases.map((record) => (
                           <tr key={record.caseId} className="transition-colors hover:bg-slate-50">

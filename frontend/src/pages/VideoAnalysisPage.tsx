@@ -8,6 +8,7 @@ import Sidebar from '../components/layout/Sidebar';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
 import BrandDisclaimer from '../components/branding/BrandDisclaimer';
+import EmptyState from '../components/EmptyState';
 import { apiService } from '../services/api';
 import { VideoJob, MissingPersonCase, CameraFeed, DetectionEvent } from '../types';
 
@@ -363,9 +364,7 @@ export const VideoAnalysisPage: React.FC = () => {
                 {isLoadingJobs ? (
                   <div className="py-8 text-center text-xs text-slate-400">Loading jobs…</div>
                 ) : jobs.length === 0 ? (
-                  <div className="py-8 text-center text-xs text-slate-400">
-                    No video processing jobs found. Upload a video file to begin.
-                  </div>
+                  <EmptyState icon={<Video size={20} />} title="No processing jobs yet" description="Choose a video and submit it above to start a review. Completed jobs and their candidate leads will appear here." className="border-0 bg-transparent" />
                 ) : (
                   <div className="space-y-2.5 max-h-64 overflow-y-auto custom-scrollbar pr-1">
                     {jobs.map((job) => {
@@ -447,11 +446,14 @@ export const VideoAnalysisPage: React.FC = () => {
                   {isLoadingDetails ? (
                     <div className="py-8 text-center text-xs text-slate-400">Loading detection details…</div>
                   ) : jobDetections.length === 0 ? (
-                    <div className="rounded-xl border border-slate-100 bg-slate-50 p-8 text-center text-xs text-slate-500">
-                      {selectedJob.status === 'processing'
-                        ? 'Job is currently processing. Detection events will appear here once frames are scanned.'
-                        : 'No candidate leads detected above similarity threshold in this video.'}
-                    </div>
+                    <EmptyState
+                      icon={<Eye size={20} />}
+                      title={selectedJob.status === 'processing' ? 'Video review is in progress' : 'No candidate leads found'}
+                      description={selectedJob.status === 'processing'
+                        ? 'Detection events will appear here as the video frames are scanned.'
+                        : 'This job did not produce candidate leads above the configured similarity threshold.'}
+                      className="bg-slate-50"
+                    />
                   ) : (
                     <div className="grid gap-4 sm:grid-cols-2">
                       {jobDetections.map((detection) => {

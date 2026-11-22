@@ -5,6 +5,7 @@ import Sidebar from '../components/layout/Sidebar';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
 import BrandDisclaimer from '../components/branding/BrandDisclaimer';
+import EmptyState from '../components/EmptyState';
 import LogoMark from '../components/branding/LogoMark';
 import { apiService } from '../services/api';
 import { CandidateMatch, MatchStatus } from '../types';
@@ -149,7 +150,7 @@ export const PotentialMatchesPage: React.FC = () => {
 
           {/* Match Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {loading ? <p role="status" className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-600">Loading candidate suggestions…</p> : !loadError && matches.length === 0 ? <p className="rounded-xl border border-dashed border-slate-300 bg-white p-5 text-sm text-slate-600">No candidate suggestions match these filters.</p> : !loadError && matches.map((m) => (
+            {loading ? <p role="status" className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-600">Loading candidate suggestions…</p> : !loadError && matches.length === 0 ? <EmptyState icon={<GitCompare size={21} />} title="No candidate suggestions found" description="No suggestions match the current review filters. Adjust the status, camera, or minimum similarity threshold to broaden the results." className="md:col-span-2 lg:col-span-3" /> : !loadError && matches.map((m) => (
               <div
                 key={m.matchId}
                 className={`bg-white border ${m.matchId === highlightId ? 'border-cyan-500 ring-2 ring-cyan-200' : 'border-slate-200'} rounded-2xl p-5 shadow-sm space-y-4 hover:shadow-md transition-all flex flex-col justify-between`}

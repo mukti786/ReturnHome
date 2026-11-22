@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
+import EmptyState from '../components/EmptyState';
 import { apiService } from '../services/api';
 import { UnifiedEvidenceItem } from '../types';
 import { useAuth } from '../context/AuthContext';
@@ -180,13 +181,7 @@ export const EvidencePage: React.FC = () => {
             ))}
           </div>
         ) : evidenceList.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center">
-            <FolderKanban className="mx-auto h-12 w-12 text-slate-300" />
-            <h3 className="mt-3 text-sm font-semibold text-slate-900">No evidence records found</h3>
-            <p className="mt-1 text-xs text-slate-500">
-              Try adjusting your search queries or ingestion filters.
-            </p>
-          </div>
+          <EmptyState icon={<FolderKanban size={21} />} title="No evidence matches these filters" description="Try a different search, source, or review status. New footage and camera detections appear here after they are recorded." />
         ) : (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {evidenceList.map((item) => {

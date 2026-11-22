@@ -4,6 +4,7 @@ import Sidebar from '../components/layout/Sidebar';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
 import BrandDisclaimer from '../components/branding/BrandDisclaimer';
+import EmptyState from '../components/EmptyState';
 import { apiService } from '../services/api';
 import { User, UserRole } from '../types';
 
@@ -157,7 +158,7 @@ export const UsersPage: React.FC = () => {
             {loading ? (
               <div className="py-12 text-center text-xs text-slate-400">Loading user accounts…</div>
             ) : users.length === 0 ? (
-              <div className="py-12 text-center text-xs text-slate-400">No user accounts found matching current filters.</div>
+              <EmptyState icon={<UserCheck size={21} />} title="No user accounts match these filters" description="Try selecting a different role or account status to see more users." className="border-0 bg-transparent" />
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
