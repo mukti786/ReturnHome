@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Save, ArrowLeft } from 'lucide-react';
 import Sidebar from '../components/layout/Sidebar';
@@ -12,6 +12,9 @@ export const EditCasePage: React.FC = () => {
   const navigate = useNavigate();
   const [caseItem, setCaseItem] = useState<MissingPersonCase | null>(null);
   const [loading, setLoading] = useState(false);
+  const [formError, setFormError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const submitLock = useRef(false);
 
   useEffect(() => {
     async function loadCase() {
@@ -39,13 +42,27 @@ export const EditCasePage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!caseItem || submitLock.current || loading) return;
+    const nextFieldErrors: Record<string, string> = {};
+    if (!caseItem.name.trim()) nextFieldErrors.name = 'Enter the missing person’s name.';
+    if (!Number.isFinite(caseItem.age) || caseItem.age < 0 || caseItem.age > 130) nextFieldErrors.age = 'Enter an age from 0 to 130.';
+    if (!caseItem.lastSeenLocation.trim()) nextFieldErrors.location = 'Enter the last known location.';
+    setFieldErrors(nextFieldErrors);
+    if (Object.keys(nextFieldErrors).length > 0) {
+      setFormError('');
+      return;
+    }
+    submitLock.current = true;
+    setFormError('');
     setLoading(true);
     try {
-      await apiService.updateCase(caseItem.caseId, caseItem);
-      setLoading(false);
+      const response = await apiService.updateCase(caseItem.caseId, caseItem);
+      if (response.success !== true || !response.case) throw new Error(response.message || 'The server did not confirm the case update.');
       navigate(`/cases/${caseItem.caseId}`);
     } catch (err: any) {
-      alert(err.message || 'Failed to update case');
+      setFormError(err.message || 'The case could not be updated. Please try again.');
+    } finally {
+      submitLock.current = false;
       setLoading(false);
     }
   };
@@ -72,26 +89,37 @@ export const EditCasePage: React.FC = () => {
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-lg space-y-4">
+          <form noValidate onSubmit={handleSubmit} className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-lg space-y-4">
+            {formError && <p role="alert" className="rounded-lg border border-rose-500/40 bg-rose-500/10 p-3 text-xs text-rose-200">{formError}</p>}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">Full Name</label>
+                <label className="block text-xs font-medium text-slate-300 mb-1">Full Name <span className="text-rose-300">*</span></label>
                 <input
                   type="text"
+                  required
                   value={caseItem.name}
-                  onChange={(e) => setCaseItem({ ...caseItem, name: e.target.value })}
+                  aria-invalid={!!fieldErrors.name}
+                  aria-describedby={fieldErrors.name ? 'edit-name-error' : undefined}
+                  onChange={(e) => { setCaseItem({ ...caseItem, name: e.target.value }); setFieldErrors((current) => ({ ...current, name: '' })); }}
                   className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:border-cyan-500"
                 />
+                {fieldErrors.name && <p id="edit-name-error" className="mt-1 text-xs text-rose-300">{fieldErrors.name}</p>}
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">Age</label>
+                <label className="block text-xs font-medium text-slate-300 mb-1">Age <span className="text-rose-300">*</span></label>
                 <input
                   type="number"
-                  value={caseItem.age}
-                  onChange={(e) => setCaseItem({ ...caseItem, age: Number(e.target.value) })}
+                  min={0}
+                  max={130}
+                  required
+                  value={Number.isNaN(caseItem.age) ? '' : caseItem.age}
+                  aria-invalid={!!fieldErrors.age}
+                  aria-describedby={fieldErrors.age ? 'edit-age-error' : undefined}
+                  onChange={(e) => { setCaseItem({ ...caseItem, age: e.target.value === '' ? Number.NaN : Number(e.target.value) }); setFieldErrors((current) => ({ ...current, age: '' })); }}
                   className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:border-cyan-500"
                 />
+                {fieldErrors.age && <p id="edit-age-error" className="mt-1 text-xs text-rose-300">{fieldErrors.age}</p>}
               </div>
 
               <div>
@@ -126,13 +154,17 @@ export const EditCasePage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">Last Known Location</label>
+                <label className="block text-xs font-medium text-slate-300 mb-1">Last Known Location <span className="text-rose-300">*</span></label>
                 <input
                   type="text"
+                  required
                   value={caseItem.lastSeenLocation}
-                  onChange={(e) => setCaseItem({ ...caseItem, lastSeenLocation: e.target.value })}
+                  aria-invalid={!!fieldErrors.location}
+                  aria-describedby={fieldErrors.location ? 'edit-location-error' : undefined}
+                  onChange={(e) => { setCaseItem({ ...caseItem, lastSeenLocation: e.target.value }); setFieldErrors((current) => ({ ...current, location: '' })); }}
                   className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:border-cyan-500"
                 />
+                {fieldErrors.location && <p id="edit-location-error" className="mt-1 text-xs text-rose-300">{fieldErrors.location}</p>}
               </div>
             </div>
 

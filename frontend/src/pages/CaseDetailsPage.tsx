@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   User, MapPin, Clock, Calendar, ShieldAlert, FileText,
@@ -25,6 +25,7 @@ export const CaseDetailsPage: React.FC = () => {
   const [detections, setDetections] = useState<DetectionEvent[]>([]);
   const [sightings, setSightings] = useState<SightingItem[]>([]);
   const [activityLog, setActivityLog] = useState<any[]>([]);
+  const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
 
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -40,6 +41,10 @@ export const CaseDetailsPage: React.FC = () => {
   const [reviewStatus, setReviewStatus] = useState<'Verified' | 'Rejected'>('Verified');
   const [reviewNotes, setReviewNotes] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
+  const [sightingReviewError, setSightingReviewError] = useState('');
+  const [sightingReviewSuccess, setSightingReviewSuccess] = useState('');
+  const [sightingReviewNotesError, setSightingReviewNotesError] = useState('');
+  const sightingReviewLock = useRef(false);
 
   // Investigator note
   const [investigatorNote, setInvestigatorNote] = useState('');
@@ -59,6 +64,7 @@ export const CaseDetailsPage: React.FC = () => {
       setDetections((res as any).detections || []);
       setSightings((res as any).sightings || []);
       setActivityLog((res as any).activityLog || []);
+      setTimeline(res.timeline || []);
     } catch (err: any) {
       setLoadError(err.message || 'Could not load this case.');
     } finally {
@@ -72,7 +78,7 @@ export const CaseDetailsPage: React.FC = () => {
 
   const handleStatusUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!caseItem) return;
+    if (!caseItem || updatingStatus) return;
     setUpdatingStatus(true);
     setStatusMessage('');
     try {
@@ -81,6 +87,8 @@ export const CaseDetailsPage: React.FC = () => {
         setCaseItem(res.case);
         setStatusMessage(`Case status successfully changed to ${newStatus}.`);
         void loadCaseDetails();
+      } else {
+        setStatusMessage('Error: The server did not confirm the case status update. Please try again.');
       }
     } catch (err: any) {
       setStatusMessage(`Error: ${err.message}`);
@@ -91,16 +99,26 @@ export const CaseDetailsPage: React.FC = () => {
 
   const handleSightingReview = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedSighting) return;
+    if (!selectedSighting || sightingReviewLock.current) return;
+    if (!reviewNotes.trim()) {
+      setSightingReviewNotesError('Add a short note explaining this decision.');
+      return;
+    }
+    sightingReviewLock.current = true;
     setSubmittingReview(true);
+    setSightingReviewError('');
+    setSightingReviewNotesError('');
     try {
-      await apiService.reviewSighting(selectedSighting.sightingId, reviewStatus, reviewNotes);
+      const response = await apiService.reviewSighting(selectedSighting.sightingId, reviewStatus, reviewNotes);
+      if (response.success !== true) throw new Error(response.message || 'The server did not confirm this review.');
+      setSightingReviewSuccess(`Sighting ${selectedSighting.sightingId} review saved.`);
       setSelectedSighting(null);
       setReviewNotes('');
       void loadCaseDetails();
     } catch (err: any) {
-      alert(`Error reviewing sighting: ${err.message}`);
+      setSightingReviewError(err.message || 'The sighting review could not be saved. Please try again.');
     } finally {
+      sightingReviewLock.current = false;
       setSubmittingReview(false);
     }
   };
@@ -301,6 +319,7 @@ export const CaseDetailsPage: React.FC = () => {
           </div>
 
           <BrandDisclaimer variant="compact" />
+          {sightingReviewSuccess && <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{sightingReviewSuccess}</p>}
 
           {/* Navigation Tabs */}
           <div className="flex items-center gap-2 border-b border-slate-200 text-xs font-semibold overflow-x-auto">
@@ -465,7 +484,7 @@ export const CaseDetailsPage: React.FC = () => {
                         <div className="border-t border-slate-100 pt-3">
                           <button
                             type="button"
-                            onClick={() => { setSelectedSighting(s); setReviewStatus('Verified'); }}
+                            onClick={() => { setSelectedSighting(s); setReviewStatus('Verified'); setSightingReviewError(''); setSightingReviewNotesError(''); }}
                             className="w-full inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#356a5a] py-2 text-xs font-semibold text-white hover:bg-[#2b5548]"
                           >
                             <ShieldCheck size={14} /> Review & Verify Sighting
@@ -655,7 +674,8 @@ export const CaseDetailsPage: React.FC = () => {
                   <button type="button" onClick={() => setSelectedSighting(null)} className="text-slate-400 hover:text-slate-700">✕</button>
                 </div>
 
-                <form onSubmit={handleSightingReview} className="mt-4 space-y-4">
+                <form noValidate onSubmit={handleSightingReview} className="mt-4 space-y-4">
+                  {sightingReviewError && <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">{sightingReviewError}</p>}
                   <div className="rounded-xl bg-slate-50 p-3 text-xs space-y-1">
                     <p><strong>Location:</strong> {selectedSighting.location}</p>
                     <p><strong>Seen:</strong> {new Date(selectedSighting.dateTimeSeen).toLocaleString()}</p>
@@ -675,15 +695,18 @@ export const CaseDetailsPage: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700">Formal Review Notes</label>
+                    <label className="block text-xs font-semibold text-slate-700">Formal Review Notes <span className="text-rose-600">*</span></label>
                     <textarea
                       rows={3}
                       value={reviewNotes}
-                      onChange={(e) => setReviewNotes(e.target.value)}
                       required
+                      aria-invalid={!!sightingReviewNotesError}
+                      aria-describedby={sightingReviewNotesError ? 'sighting-review-notes-error' : undefined}
+                      onChange={(e) => { setReviewNotes(e.target.value); setSightingReviewNotesError(''); }}
                       placeholder="Explain verification reasoning, field checks performed, or reason for rejection..."
                       className="mt-1 w-full rounded-xl border border-slate-200 p-3 text-xs text-slate-900 placeholder:text-slate-400 focus:border-[#356a5a] focus:outline-none"
                     />
+                    {sightingReviewNotesError && <p id="sighting-review-notes-error" className="mt-1 text-xs font-medium text-rose-700">{sightingReviewNotesError}</p>}
                   </div>
 
                   <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">

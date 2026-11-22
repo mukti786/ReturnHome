@@ -23,6 +23,8 @@ export const PotentialMatchesPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [reviewError, setReviewError] = useState('');
+  const [reviewSuccess, setReviewSuccess] = useState('');
+  const [reviewNotesError, setReviewNotesError] = useState('');
   const [reviewing, setReviewing] = useState(false);
 
   const fetchMatches = async () => {
@@ -54,10 +56,18 @@ export const PotentialMatchesPage: React.FC = () => {
 
   const handleReview = async (status: MatchStatus) => {
     if (!selectedMatch || reviewing) return;
+    if (!reviewNotes.trim()) {
+      setReviewNotesError('Add a short rationale before recording this review.');
+      return;
+    }
     setReviewing(true);
     setReviewError('');
+    setReviewNotesError('');
+    setReviewSuccess('');
     try {
-      await apiService.reviewMatch(selectedMatch.matchId, status, reviewNotes);
+      const response = await apiService.reviewMatch(selectedMatch.matchId, status, reviewNotes);
+      if (response.success !== true) throw new Error(response.message || 'The server did not confirm this review.');
+      setReviewSuccess(`Review saved for ${selectedMatch.matchId}.`);
       setSelectedMatch(null);
       setReviewNotes('');
       await fetchMatches();
@@ -96,6 +106,7 @@ export const PotentialMatchesPage: React.FC = () => {
           <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-950">Every item below is an AI candidate suggestion. Nothing on this page confirms a person’s identity or a sighting. The current backend includes seeded sample records; treat those as illustrative and check source records before acting.</p>
           {loadError && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900">Candidate suggestions could not be loaded: {loadError}</p>}
           {reviewError && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900">Review was not saved: {reviewError}</p>}
+          {reviewSuccess && <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{reviewSuccess}</p>}
 
           {/* Filter Toolbar */}
           <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-3">
@@ -188,7 +199,7 @@ export const PotentialMatchesPage: React.FC = () => {
                 </div>
 
                 <button
-                  onClick={() => setSelectedMatch(m)}
+                    onClick={() => { setSelectedMatch(m); setReviewError(''); setReviewNotesError(''); }}
                   className="w-full mt-3 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-indigo-700 font-bold text-xs border border-slate-200 flex items-center justify-center gap-1.5 transition-all"
                 >
                   <Eye className="w-4 h-4" /> Inspect & Sign-off Candidate
@@ -211,6 +222,7 @@ export const PotentialMatchesPage: React.FC = () => {
                     </h2>
                   </div>
                   <button
+                    type="button"
                     onClick={() => setSelectedMatch(null)}
                     className="p-2 rounded-xl text-slate-400 hover:text-slate-900 hover:bg-slate-100"
                   >
@@ -241,19 +253,24 @@ export const PotentialMatchesPage: React.FC = () => {
 
                 {/* Rationale & Notes */}
                 <div className="space-y-2">
-                  <label className="block text-xs font-extrabold text-slate-800">Investigator Verification Notes & Rationale *</label>
+                  <label className="block text-xs font-extrabold text-slate-800">Investigator Verification Notes & Rationale <span className="text-rose-600">*</span></label>
                   <textarea
                     rows={3}
                     value={reviewNotes}
-                    onChange={(e) => setReviewNotes(e.target.value)}
+                    required
+                    aria-invalid={!!reviewNotesError}
+                    aria-describedby={reviewNotesError ? 'match-review-notes-error' : undefined}
+                    onChange={(e) => { setReviewNotes(e.target.value); setReviewNotesError(''); }}
                     placeholder="Enter visual matching rationale (e.g. facial feature comparison, clothing match, scar verification)..."
                     className="w-full bg-slate-100 border border-slate-200 rounded-xl p-3 text-xs text-slate-900 focus:outline-none focus:border-cyan-500 focus:bg-white"
                   />
+                  {reviewNotesError && <p id="match-review-notes-error" className="text-xs font-medium text-rose-700">{reviewNotesError}</p>}
                 </div>
 
                 {/* Action Buttons */}
                 <div className="flex flex-wrap items-center justify-end gap-3 pt-3 border-t border-slate-100">
                   <button
+                    type="button"
                     disabled={reviewing}
                     onClick={() => handleReview('Rejected')}
                     className="px-4 py-2.5 rounded-xl bg-red-50 border border-red-200 hover:bg-red-100 text-red-700 font-bold text-xs flex items-center gap-1.5 disabled:opacity-50"

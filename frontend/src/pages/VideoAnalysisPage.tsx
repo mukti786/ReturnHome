@@ -146,6 +146,7 @@ export const VideoAnalysisPage: React.FC = () => {
   // Submit Video Upload
   const handleUploadSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isUploading) return;
     if (!videoFile) {
       setUploadError('Please select a video file to upload.');
       return;
@@ -217,6 +218,7 @@ export const VideoAnalysisPage: React.FC = () => {
 
                 <form onSubmit={handleUploadSubmit} className="space-y-4">
                   {/* File Dropzone */}
+                  <p className="text-xs font-semibold text-slate-700">Video file <span className="text-rose-600">*</span></p>
                   <div
                     onClick={() => fileInputRef.current?.click()}
                     className="cursor-pointer rounded-xl border-2 border-dashed border-slate-300 p-6 text-center hover:border-[#1d5147] hover:bg-slate-50/50 transition-colors"

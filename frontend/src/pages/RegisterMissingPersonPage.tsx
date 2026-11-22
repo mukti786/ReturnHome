@@ -40,12 +40,15 @@ export const RegisterMissingPersonPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'upload' | 'url'>('upload');
   const [loading, setLoading] = useState(false);
   const [formError, setFormError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const submitLock = useRef(false);
 
   // Handle local file uploads (FileReader -> Base64 data URL)
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
+    setFieldErrors((current) => ({ ...current, photos: '' }));
+    setFormError('');
     if (photos.length + files.length > 8) {
       setFormError('A case can include up to 8 reference photos.');
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -77,6 +80,14 @@ export const RegisterMissingPersonPage: React.FC = () => {
 
   const handleAddPhotoUrl = () => {
     if (photoUrlInput.trim()) {
+      try {
+        new URL(photoUrlInput.trim());
+      } catch {
+        setFormError('Enter a valid image URL.');
+        return;
+      }
+      setFieldErrors((current) => ({ ...current, photos: '' }));
+      setFormError('');
       setPhotos([...photos, photoUrlInput.trim()]);
       setPhotoUrlInput('');
     }
@@ -84,6 +95,7 @@ export const RegisterMissingPersonPage: React.FC = () => {
 
   const handleRemovePhoto = (idx: number) => {
     setPhotos(photos.filter((_, i) => i !== idx));
+    setFieldErrors((current) => ({ ...current, photos: '' }));
   };
 
   const sampleDemoPhotos = [
@@ -95,6 +107,7 @@ export const RegisterMissingPersonPage: React.FC = () => {
   const handleAddSamplePhoto = (url: string) => {
     if (!photos.includes(url)) {
       setPhotos([...photos, url]);
+      setFieldErrors((current) => ({ ...current, photos: '' }));
     }
   };
 
@@ -102,12 +115,18 @@ export const RegisterMissingPersonPage: React.FC = () => {
     e.preventDefault();
     if (submitLock.current || loading) return;
     setFormError('');
-    if (!formData.name.trim() || !formData.age || !formData.lastSeenDate || !formData.lastSeenLocation.trim()) {
-      setFormError('Enter the missing person’s name, age, last-seen date, and location.');
-      return;
-    }
-    if (photos.length === 0) {
-      setFormError('Add at least one reference photo before registering this case.');
+    const nextFieldErrors: Record<string, string> = {};
+    const age = Number(formData.age);
+    if (!formData.name.trim()) nextFieldErrors.name = 'Enter the missing person’s name.';
+    if (!formData.age || !Number.isFinite(age) || age < 0 || age > 130) nextFieldErrors.age = 'Enter an age from 0 to 130.';
+    if (!formData.gender) nextFieldErrors.gender = 'Choose a gender.';
+    if (!formData.dateReported) nextFieldErrors.dateReported = 'Choose the report date.';
+    if (!formData.lastSeenDate) nextFieldErrors.lastSeenDate = 'Choose the last-seen date.';
+    if (!formData.lastSeenLocation.trim()) nextFieldErrors.lastSeenLocation = 'Enter the last known location.';
+    if (photos.length === 0) nextFieldErrors.photos = 'Add at least one reference photo before registering this case.';
+    setFieldErrors(nextFieldErrors);
+    if (Object.keys(nextFieldErrors).length > 0) {
+      setFormError('');
       return;
     }
     submitLock.current = true;
@@ -152,7 +171,7 @@ export const RegisterMissingPersonPage: React.FC = () => {
 
           <BrandDisclaimer variant="compact" />
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form noValidate onSubmit={handleSubmit} className="space-y-6">
             {/* 1. Personal Information */}
             <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
               <h3 className="font-extrabold text-slate-900 text-sm pb-3 border-b border-slate-100 flex items-center gap-2">
@@ -161,43 +180,53 @@ export const RegisterMissingPersonPage: React.FC = () => {
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Full Name *</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Full Name <span className="text-rose-600">*</span></label>
                   <input
                     type="text"
                     required
                     maxLength={160}
                     value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    aria-invalid={!!fieldErrors.name}
+                    aria-describedby={fieldErrors.name ? 'case-name-error' : undefined}
+                    onChange={(e) => { setFormData({ ...formData, name: e.target.value }); setFieldErrors((current) => ({ ...current, name: '' })); }}
                     placeholder="e.g. Aarav Sharma"
                     className="w-full bg-slate-100 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-cyan-500 focus:bg-white"
                   />
+                  {fieldErrors.name && <p id="case-name-error" className="mt-1 text-xs text-rose-700">{fieldErrors.name}</p>}
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Age at Disappearance *</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Age at Disappearance <span className="text-rose-600">*</span></label>
                   <input
                     type="number"
                     required
                     min={0}
                     max={130}
                     value={formData.age}
-                    onChange={(e) => setFormData({ ...formData, age: e.target.value })}
+                    aria-invalid={!!fieldErrors.age}
+                    aria-describedby={fieldErrors.age ? 'case-age-error' : undefined}
+                    onChange={(e) => { setFormData({ ...formData, age: e.target.value }); setFieldErrors((current) => ({ ...current, age: '' })); }}
                     placeholder="12"
                     className="w-full bg-slate-100 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-cyan-500 focus:bg-white"
                   />
+                  {fieldErrors.age && <p id="case-age-error" className="mt-1 text-xs text-rose-700">{fieldErrors.age}</p>}
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Gender *</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Gender <span className="text-rose-600">*</span></label>
                   <select
+                    required
                     value={formData.gender}
-                    onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
+                    aria-invalid={!!fieldErrors.gender}
+                    aria-describedby={fieldErrors.gender ? 'case-gender-error' : undefined}
+                    onChange={(e) => { setFormData({ ...formData, gender: e.target.value }); setFieldErrors((current) => ({ ...current, gender: '' })); }}
                     className="w-full bg-slate-100 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-semibold focus:outline-none focus:border-cyan-500 focus:bg-white"
                   >
                     <option value="Male">Male</option>
                     <option value="Female">Female</option>
                     <option value="Other">Other</option>
                   </select>
+                  {fieldErrors.gender && <p id="case-gender-error" className="mt-1 text-xs text-rose-700">{fieldErrors.gender}</p>}
                 </div>
               </div>
 
@@ -267,14 +296,17 @@ export const RegisterMissingPersonPage: React.FC = () => {
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Date Reported</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Date Reported <span className="text-rose-600">*</span></label>
                   <input
                     type="date"
                     required
                     value={formData.dateReported}
-                    onChange={(e) => setFormData({ ...formData, dateReported: e.target.value })}
+                    aria-invalid={!!fieldErrors.dateReported}
+                    aria-describedby={fieldErrors.dateReported ? 'reported-date-error' : undefined}
+                    onChange={(e) => { setFormData({ ...formData, dateReported: e.target.value }); setFieldErrors((current) => ({ ...current, dateReported: '' })); }}
                     className="w-full bg-slate-100 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-cyan-500 focus:bg-white"
                   />
+                  {fieldErrors.dateReported && <p id="reported-date-error" className="mt-1 text-xs text-rose-700">{fieldErrors.dateReported}</p>}
                 </div>
 
                 <div>
@@ -283,9 +315,12 @@ export const RegisterMissingPersonPage: React.FC = () => {
                     type="date"
                     required
                     value={formData.lastSeenDate}
-                    onChange={(e) => setFormData({ ...formData, lastSeenDate: e.target.value })}
+                    aria-invalid={!!fieldErrors.lastSeenDate}
+                    aria-describedby={fieldErrors.lastSeenDate ? 'last-seen-date-error' : undefined}
+                    onChange={(e) => { setFormData({ ...formData, lastSeenDate: e.target.value }); setFieldErrors((current) => ({ ...current, lastSeenDate: '' })); }}
                     className="w-full bg-slate-100 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-cyan-500 focus:bg-white"
                   />
+                  {fieldErrors.lastSeenDate && <p id="last-seen-date-error" className="mt-1 text-xs text-rose-700">{fieldErrors.lastSeenDate}</p>}
                 </div>
 
                 <div>
@@ -305,10 +340,13 @@ export const RegisterMissingPersonPage: React.FC = () => {
                   type="text"
                   required
                   value={formData.lastSeenLocation}
-                  onChange={(e) => setFormData({ ...formData, lastSeenLocation: e.target.value })}
+                  aria-invalid={!!fieldErrors.lastSeenLocation}
+                  aria-describedby={fieldErrors.lastSeenLocation ? 'last-seen-location-error' : undefined}
+                  onChange={(e) => { setFormData({ ...formData, lastSeenLocation: e.target.value }); setFieldErrors((current) => ({ ...current, lastSeenLocation: '' })); }}
                   placeholder="e.g. New Delhi Railway Station - Platform 4 Concourse"
                   className="w-full bg-slate-100 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-cyan-500 focus:bg-white"
                 />
+                {fieldErrors.lastSeenLocation && <p id="last-seen-location-error" className="mt-1 text-xs text-rose-700">{fieldErrors.lastSeenLocation}</p>}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -340,7 +378,7 @@ export const RegisterMissingPersonPage: React.FC = () => {
             <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
                 <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
-                  3. Reference Photographs (Front Face, Profiles, Angles)
+                  3. Reference Photographs <span className="text-rose-600">*</span> (Front Face, Profiles, Angles)
                 </h3>
 
                 {/* Method Switcher Tabs */}
@@ -444,6 +482,7 @@ export const RegisterMissingPersonPage: React.FC = () => {
                 <span className="text-xs font-bold text-slate-700 block">
                   Reference Photos Added ({photos.length}):
                 </span>
+                {fieldErrors.photos && <p role="alert" className="text-xs font-medium text-rose-700">{fieldErrors.photos}</p>}
                 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                   {photos.map((url, idx) => (

@@ -22,6 +22,7 @@ const PublicReportPage: React.FC = () => {
   const [consentAcknowledged, setConsentAcknowledged] = useState(false);
   const [preview, setPreview] = useState('');
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [result, setResult] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const submitLock = useRef(false);
@@ -35,6 +36,8 @@ const PublicReportPage: React.FC = () => {
 
   const update = (key: keyof typeof blank) => (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setForm((current) => ({ ...current, [key]: event.target.value }));
+    setFieldErrors((current) => ({ ...current, [key]: '' }));
+    setError('');
   };
 
   const handlePhoto = (file?: File) => {
@@ -52,17 +55,25 @@ const PublicReportPage: React.FC = () => {
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault(); setError(''); setResult('');
     if (submitLock.current) return;
-    if (!form.fullName.trim() || !form.lastSeenAddress.trim() || !form.reporterName.trim()) {
-      setError('Enter the missing person’s name, last-seen place, and your name.'); return;
-    }
+    const nextFieldErrors: Record<string, string> = {};
+    if (!form.fullName.trim()) nextFieldErrors.fullName = 'Enter the missing person’s name.';
+    if (!form.lastSeenAddress.trim()) nextFieldErrors.lastSeenAddress = 'Enter the last-seen place.';
+    if (!form.reporterName.trim()) nextFieldErrors.reporterName = 'Enter your name.';
     if (!form.reporterPhone.trim() && !form.reporterEmail.trim()) {
-      setError('Provide a phone number or email address so the review team can contact you.'); return;
+      nextFieldErrors.reporterPhone = 'Add a phone number or email address.';
+      nextFieldErrors.reporterEmail = 'Add a phone number or email address.';
+    } else if (form.reporterPhone.trim() && (!/^\+?[\d\s().-]{7,40}$/.test(form.reporterPhone.trim()) || form.reporterPhone.replace(/\D/g, '').length < 7 || form.reporterPhone.replace(/\D/g, '').length > 15)) {
+      nextFieldErrors.reporterPhone = 'Enter a valid phone number.';
     }
-    if (!consentAcknowledged) {
-      setError('Confirm that you are authorized to share these details and understand how this deployment uses them.'); return;
+    if (form.reporterEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.reporterEmail.trim())) {
+      nextFieldErrors.reporterEmail = 'Enter a valid email address.';
     }
-    if ((form.preferredContact === 'Phone' && !form.reporterPhone.trim()) || (form.preferredContact === 'Email' && !form.reporterEmail.trim())) {
-      setError('Add the contact detail that matches your preferred contact method.'); return;
+    if (form.preferredContact === 'Phone' && !form.reporterPhone.trim()) nextFieldErrors.reporterPhone = 'Add the phone number you prefer to use.';
+    if (form.preferredContact === 'Email' && !form.reporterEmail.trim()) nextFieldErrors.reporterEmail = 'Add the email address you prefer to use.';
+    if (!consentAcknowledged) nextFieldErrors.consent = 'Please confirm before submitting this report.';
+    setFieldErrors(nextFieldErrors);
+    if (Object.keys(nextFieldErrors).length > 0) {
+      setError(''); return;
     }
     submitLock.current = true;
     setSubmitting(true);
@@ -105,12 +116,12 @@ const PublicReportPage: React.FC = () => {
       {error && <div role="alert" className="mt-5 rounded-xl border border-rose-500/40 bg-rose-500/10 p-4 text-sm leading-6 text-rose-200">{error}</div>}
       {result && <div role="status" className="mt-5 flex gap-3 rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-4 text-sm leading-6 text-emerald-100"><CheckCircle2 size={19} className="mt-0.5 shrink-0" /><p>{result}</p></div>}
 
-      <form onSubmit={handleSubmit} className="mt-7 space-y-6">
+      <form noValidate onSubmit={handleSubmit} className="mt-7 space-y-6">
         <section className="rounded-2xl border border-slate-800 bg-slate-900/65 p-5 sm:p-7">
           <h2 className="text-lg font-semibold">About the missing person</h2>
           <p className="mt-1 text-sm text-slate-400">Share what you know; unknown details can be left blank.</p>
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
-            <label className={labelClass}>Full name <span className="text-rose-300">*</span><input className={inputClass} name="fullName" autoComplete="off" required maxLength={160} value={form.fullName} onChange={update('fullName')} /></label>
+            <label className={labelClass}>Full name <span className="text-rose-300">*</span><input className={inputClass} name="fullName" autoComplete="off" required maxLength={160} value={form.fullName} onChange={update('fullName')} aria-invalid={!!fieldErrors.fullName} aria-describedby={fieldErrors.fullName ? 'full-name-error' : undefined} />{fieldErrors.fullName && <span id="full-name-error" className="mt-1 block text-xs font-medium text-rose-300">{fieldErrors.fullName}</span>}</label>
             <div className="grid grid-cols-2 gap-3">
               <label className={labelClass}>Age<input className={inputClass} type="number" min="0" max="130" value={form.age} onChange={update('age')} /></label>
               <label className={labelClass}>Date of birth<input className={inputClass} type="date" value={form.dateOfBirth} onChange={update('dateOfBirth')} /></label>
@@ -139,7 +150,7 @@ const PublicReportPage: React.FC = () => {
           <h2 className="text-lg font-semibold">Last known location</h2>
           <p className="mt-1 text-sm text-slate-400">Enter the place as you know it. Coordinates are optional and never guessed.</p>
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
-            <label className={`${labelClass} sm:col-span-2`}>Address or place <span className="text-rose-300">*</span><input className={inputClass} required maxLength={500} value={form.lastSeenAddress} onChange={update('lastSeenAddress')} placeholder="Street, landmark, station…" /></label>
+            <label className={`${labelClass} sm:col-span-2`}>Address or place <span className="text-rose-300">*</span><input className={inputClass} required maxLength={500} value={form.lastSeenAddress} onChange={update('lastSeenAddress')} placeholder="Street, landmark, station…" aria-invalid={!!fieldErrors.lastSeenAddress} aria-describedby={fieldErrors.lastSeenAddress ? 'last-seen-address-error' : undefined} />{fieldErrors.lastSeenAddress && <span id="last-seen-address-error" className="mt-1 block text-xs font-medium text-rose-300">{fieldErrors.lastSeenAddress}</span>}</label>
             <label className={labelClass}>City<input className={inputClass} maxLength={120} value={form.city} onChange={update('city')} /></label>
             <label className={labelClass}>State / region<input className={inputClass} maxLength={120} value={form.state} onChange={update('state')} /></label>
             <label className={labelClass}>Country<input className={inputClass} maxLength={120} value={form.country} onChange={update('country')} /></label>
@@ -160,16 +171,16 @@ const PublicReportPage: React.FC = () => {
           <h2 className="text-lg font-semibold">How we can contact you</h2>
           <p className="mt-1 text-sm text-slate-400">Your contact details are only available in the protected investigator workspace.</p>
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
-            <label className={labelClass}>Your name <span className="text-rose-300">*</span><input className={inputClass} required maxLength={160} autoComplete="name" value={form.reporterName} onChange={update('reporterName')} /></label>
+            <label className={labelClass}>Your name <span className="text-rose-300">*</span><input className={inputClass} required maxLength={160} autoComplete="name" value={form.reporterName} onChange={update('reporterName')} aria-invalid={!!fieldErrors.reporterName} aria-describedby={fieldErrors.reporterName ? 'reporter-name-error' : undefined} />{fieldErrors.reporterName && <span id="reporter-name-error" className="mt-1 block text-xs font-medium text-rose-300">{fieldErrors.reporterName}</span>}</label>
             <label className={labelClass}>Relationship<input className={inputClass} maxLength={120} value={form.relationship} onChange={update('relationship')} placeholder="Family, friend, witness…" /></label>
-            <label className={labelClass}>Phone<input className={inputClass} type="tel" autoComplete="tel" maxLength={40} value={form.reporterPhone} onChange={update('reporterPhone')} /></label>
-            <label className={labelClass}>Email<input className={inputClass} type="email" autoComplete="email" maxLength={254} value={form.reporterEmail} onChange={update('reporterEmail')} /></label>
+            <label className={labelClass}>Phone<input className={inputClass} type="tel" autoComplete="tel" maxLength={40} value={form.reporterPhone} onChange={update('reporterPhone')} aria-invalid={!!fieldErrors.reporterPhone} aria-describedby={fieldErrors.reporterPhone ? 'reporter-phone-error' : undefined} />{fieldErrors.reporterPhone && <span id="reporter-phone-error" className="mt-1 block text-xs font-medium text-rose-300">{fieldErrors.reporterPhone}</span>}</label>
+            <label className={labelClass}>Email<input className={inputClass} type="email" autoComplete="email" maxLength={254} value={form.reporterEmail} onChange={update('reporterEmail')} aria-invalid={!!fieldErrors.reporterEmail} aria-describedby={fieldErrors.reporterEmail ? 'reporter-email-error' : undefined} />{fieldErrors.reporterEmail && <span id="reporter-email-error" className="mt-1 block text-xs font-medium text-rose-300">{fieldErrors.reporterEmail}</span>}</label>
             <label className={labelClass}>Preferred contact method<select className={inputClass} value={form.preferredContact} onChange={update('preferredContact')}><option value="">No preference</option><option value="Phone">Phone</option><option value="Email">Email</option></select></label>
-            <p className="self-end text-xs leading-5 text-slate-500">At least one phone number or email address is required.</p>
+            <p className="self-end text-xs leading-5 text-slate-500">At least one phone number or email address is required <span className="text-rose-300">*</span>.</p>
           </div>
         </section>
 
-        <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-800 bg-slate-900/50 p-4 text-xs leading-5 text-slate-300"><input type="checkbox" required checked={consentAcknowledged} onChange={(event) => setConsentAcknowledged(event.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-teal-400" /><span>I am authorized to share this information and understand it will be stored for review by authorized users of this ReturnHome deployment. It is not automatically sent to police, emergency services, or any other agency.</span></label>
+        <div><label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-800 bg-slate-900/50 p-4 text-xs leading-5 text-slate-300"><input type="checkbox" required checked={consentAcknowledged} onChange={(event) => { setConsentAcknowledged(event.target.checked); setFieldErrors((current) => ({ ...current, consent: '' })); setError(''); }} aria-invalid={!!fieldErrors.consent} aria-describedby={fieldErrors.consent ? 'consent-error' : undefined} className="mt-0.5 h-4 w-4 shrink-0 accent-teal-400" /><span>I am authorized to share this information and understand it will be stored for review by authorized users of this ReturnHome deployment. It is not automatically sent to police, emergency services, or any other agency. <span className="text-rose-300">*</span></span></label>{fieldErrors.consent && <p id="consent-error" className="mt-1 text-xs font-medium text-rose-300">{fieldErrors.consent}</p>}</div>
         <button type="submit" disabled={submitting} className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-teal-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-teal-200 disabled:cursor-wait disabled:opacity-60 sm:w-auto sm:min-w-56">{submitting ? 'Saving report…' : 'Submit report'}</button>
       </form>
     </main>

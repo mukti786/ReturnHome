@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import {
   Eye, MapPin, Camera, Clock, User, Phone, Mail,
@@ -41,6 +41,8 @@ export const SubmitSightingPage: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [successResult, setSuccessResult] = useState<any>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const submitLock = useRef(false);
 
   useEffect(() => {
     const fetchCases = async () => {
@@ -107,19 +109,21 @@ export const SubmitSightingPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedCaseRef) {
-      setError('Please select the missing person case this sighting pertains to.');
-      return;
-    }
-    if (!location.trim()) {
-      setError('Please describe or detect the location of the sighting.');
-      return;
-    }
-    if (!notes.trim()) {
-      setError('Please provide observation notes describing what you saw.');
+    if (submitLock.current || submitting) return;
+    const nextFieldErrors: Record<string, string> = {};
+    if (!selectedCaseRef) nextFieldErrors.case = 'Select the missing-person case for this sighting.';
+    if (!location.trim()) nextFieldErrors.location = 'Enter or capture the sighting location.';
+    if (!dateTimeSeen || Number.isNaN(new Date(dateTimeSeen).getTime())) nextFieldErrors.dateTimeSeen = 'Enter when the sighting happened.';
+    if (!notes.trim()) nextFieldErrors.notes = 'Describe what you observed.';
+    if (reporterPhone.trim() && (!/^\+?[\d\s().-]{7,40}$/.test(reporterPhone.trim()) || reporterPhone.replace(/\D/g, '').length < 7 || reporterPhone.replace(/\D/g, '').length > 15)) nextFieldErrors.reporterPhone = 'Enter a valid phone number.';
+    if (reporterEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(reporterEmail.trim())) nextFieldErrors.reporterEmail = 'Enter a valid email address.';
+    setFieldErrors(nextFieldErrors);
+    if (Object.keys(nextFieldErrors).length > 0) {
+      setError('');
       return;
     }
 
+    submitLock.current = true;
     setSubmitting(true);
     setError('');
 
@@ -141,10 +145,13 @@ export const SubmitSightingPage: React.FC = () => {
 
       if (res.success) {
         setSuccessResult(res.sighting);
+      } else {
+        setError('The server did not confirm that your sighting was saved. Please try again.');
       }
     } catch (err: any) {
       setError(err.message || 'Failed to submit sighting.');
     } finally {
+      submitLock.current = false;
       setSubmitting(false);
     }
   };
@@ -207,7 +214,7 @@ export const SubmitSightingPage: React.FC = () => {
             </div>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-6 rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm">
+          <form noValidate onSubmit={handleSubmit} className="space-y-6 rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm">
             {error && (
               <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-xs font-medium text-rose-800 flex items-center gap-2">
                 <AlertCircle size={16} className="shrink-0" />
@@ -222,8 +229,10 @@ export const SubmitSightingPage: React.FC = () => {
               </label>
               <select
                 value={selectedCaseRef}
-                onChange={(e) => setSelectedCaseRef(e.target.value)}
+                onChange={(e) => { setSelectedCaseRef(e.target.value); setFieldErrors((current) => ({ ...current, case: '' })); }}
                 required
+                aria-invalid={!!fieldErrors.case}
+                aria-describedby={fieldErrors.case ? 'sighting-case-error' : undefined}
                 className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-medium text-slate-900 focus:border-[#356a5a] focus:outline-none"
               >
                 <option value="">Select a registered case...</option>
@@ -233,6 +242,7 @@ export const SubmitSightingPage: React.FC = () => {
                   </option>
                 ))}
               </select>
+              {fieldErrors.case && <p id="sighting-case-error" className="mt-1 text-xs font-medium text-rose-700">{fieldErrors.case}</p>}
 
               {targetCase && (
                 <div className="mt-3 flex items-center gap-3 rounded-2xl bg-slate-50 p-3 border border-slate-100">
@@ -278,11 +288,14 @@ export const SubmitSightingPage: React.FC = () => {
                   type="text"
                   placeholder="e.g. Connaught Place Inner Circle, near Metro Gate 4, New Delhi"
                   value={location}
-                  onChange={(e) => setLocation(e.target.value)}
+                  onChange={(e) => { setLocation(e.target.value); setFieldErrors((current) => ({ ...current, location: '' })); }}
                   required
+                  aria-invalid={!!fieldErrors.location}
+                  aria-describedby={fieldErrors.location ? 'sighting-location-error' : undefined}
                   className="w-full rounded-xl border border-slate-300 py-2.5 pl-9 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[#356a5a] focus:outline-none"
                 />
               </div>
+              {fieldErrors.location && <p id="sighting-location-error" className="text-xs font-medium text-rose-700">{fieldErrors.location}</p>}
 
               {latitude !== undefined && longitude !== undefined && (
                 <div className="flex items-center gap-2 text-[11px] text-teal-800 bg-teal-50/80 p-2 rounded-lg border border-teal-200 font-mono">
@@ -306,11 +319,14 @@ export const SubmitSightingPage: React.FC = () => {
                   <input
                     type="datetime-local"
                     value={dateTimeSeen}
-                    onChange={(e) => setDateTimeSeen(e.target.value)}
+                    onChange={(e) => { setDateTimeSeen(e.target.value); setFieldErrors((current) => ({ ...current, dateTimeSeen: '' })); }}
                     required
+                    aria-invalid={!!fieldErrors.dateTimeSeen}
+                    aria-describedby={fieldErrors.dateTimeSeen ? 'sighting-datetime-error' : undefined}
                     className="w-full rounded-xl border border-slate-300 py-2.5 pl-9 pr-3 text-sm text-slate-900 focus:border-[#356a5a] focus:outline-none bg-white"
                   />
                 </div>
+                {fieldErrors.dateTimeSeen && <p id="sighting-datetime-error" className="mt-1 text-xs font-medium text-rose-700">{fieldErrors.dateTimeSeen}</p>}
               </div>
 
               <div>
@@ -336,10 +352,13 @@ export const SubmitSightingPage: React.FC = () => {
                 rows={4}
                 placeholder="Describe exactly what happened: direction of travel, physical condition, who they were with, demeanor, or any other critical context..."
                 value={notes}
-                onChange={(e) => setNotes(e.target.value)}
+                onChange={(e) => { setNotes(e.target.value); setFieldErrors((current) => ({ ...current, notes: '' })); }}
                 required
+                aria-invalid={!!fieldErrors.notes}
+                aria-describedby={fieldErrors.notes ? 'sighting-notes-error' : undefined}
                 className="mt-1.5 w-full rounded-xl border border-slate-300 p-3.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[#356a5a] focus:outline-none leading-relaxed"
               />
+              {fieldErrors.notes && <p id="sighting-notes-error" className="mt-1 text-xs font-medium text-rose-700">{fieldErrors.notes}</p>}
             </div>
 
             {/* Photograph Upload */}
@@ -407,10 +426,13 @@ export const SubmitSightingPage: React.FC = () => {
                     <input
                       type="tel"
                       value={reporterPhone}
-                      onChange={(e) => setReporterPhone(e.target.value)}
+                      aria-invalid={!!fieldErrors.reporterPhone}
+                      aria-describedby={fieldErrors.reporterPhone ? 'sighting-phone-error' : undefined}
+                      onChange={(e) => { setReporterPhone(e.target.value); setFieldErrors((current) => ({ ...current, reporterPhone: '' })); }}
                       className="w-full rounded-xl border border-slate-300 py-2 pl-8 pr-3 text-xs text-slate-900 focus:border-[#356a5a] focus:outline-none"
                     />
                   </div>
+                  {fieldErrors.reporterPhone && <p id="sighting-phone-error" className="mt-1 text-xs font-medium text-rose-700">{fieldErrors.reporterPhone}</p>}
                 </div>
 
                 <div>
@@ -420,10 +442,13 @@ export const SubmitSightingPage: React.FC = () => {
                     <input
                       type="email"
                       value={reporterEmail}
-                      onChange={(e) => setReporterEmail(e.target.value)}
+                      aria-invalid={!!fieldErrors.reporterEmail}
+                      aria-describedby={fieldErrors.reporterEmail ? 'sighting-email-error' : undefined}
+                      onChange={(e) => { setReporterEmail(e.target.value); setFieldErrors((current) => ({ ...current, reporterEmail: '' })); }}
                       className="w-full rounded-xl border border-slate-300 py-2 pl-8 pr-3 text-xs text-slate-900 focus:border-[#356a5a] focus:outline-none"
                     />
                   </div>
+                  {fieldErrors.reporterEmail && <p id="sighting-email-error" className="mt-1 text-xs font-medium text-rose-700">{fieldErrors.reporterEmail}</p>}
                 </div>
               </div>
             </div>

@@ -30,6 +30,7 @@ export const EvidencePage: React.FC = () => {
   const [reviewDecision, setReviewDecision] = useState<'Verified' | 'Accepted Lead' | 'Rejected'>('Verified');
   const [reviewNotes, setReviewNotes] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
+  const [reviewNotesError, setReviewNotesError] = useState('');
 
   // Dossier Modal state
   const [dossierData, setDossierData] = useState<any>(null);
@@ -65,10 +66,16 @@ export const EvidencePage: React.FC = () => {
 
   const handleReviewSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!reviewingItem) return;
+    if (!reviewingItem || submittingReview) return;
+    if (!reviewNotes.trim()) {
+      setReviewNotesError('Add a short note explaining this review.');
+      return;
+    }
+    setReviewNotesError('');
     setSubmittingReview(true);
     try {
-      await apiService.reviewDetection(reviewingItem.id, reviewDecision, reviewNotes);
+      const response = await apiService.reviewDetection(reviewingItem.id, reviewDecision, reviewNotes);
+      if (response.success !== true) throw new Error(response.message || 'The server did not confirm this review.');
       setActionSuccess(`Evidence ${reviewingItem.id} marked as ${reviewDecision}.`);
       setReviewingItem(null);
       setReviewNotes('');
@@ -309,6 +316,8 @@ export const EvidencePage: React.FC = () => {
                             onClick={() => {
                               setReviewingItem(item);
                               setReviewDecision('Verified');
+                              setReviewNotes('');
+                              setReviewNotesError('');
                             }}
                             className="inline-flex items-center gap-1 rounded-lg bg-[#356a5a] px-2.5 py-1.5 text-[11px] font-semibold text-white hover:bg-[#2b5548]"
                           >
@@ -435,7 +444,7 @@ export const EvidencePage: React.FC = () => {
                 <button type="button" onClick={() => setReviewingItem(null)} className="text-slate-400 hover:text-slate-700">✕</button>
               </div>
 
-              <form onSubmit={handleReviewSubmit} className="mt-4 space-y-4">
+              <form noValidate onSubmit={handleReviewSubmit} className="mt-4 space-y-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700">Decision Status</label>
                   <select
@@ -450,15 +459,18 @@ export const EvidencePage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700">Investigator Case Notes</label>
+                  <label className="block text-xs font-semibold text-slate-700">Investigator Case Notes <span className="text-rose-600">*</span></label>
                   <textarea
                     rows={3}
                     placeholder="Enter formal justification, verification methodology, or notes for the case dossier..."
                     value={reviewNotes}
-                    onChange={(e) => setReviewNotes(e.target.value)}
+                    onChange={(e) => { setReviewNotes(e.target.value); setReviewNotesError(''); }}
                     required
+                    aria-invalid={!!reviewNotesError}
+                    aria-describedby={reviewNotesError ? 'evidence-review-notes-error' : undefined}
                     className="mt-1 w-full rounded-xl border border-slate-200 p-3 text-xs text-slate-900 placeholder:text-slate-400 focus:border-[#356a5a] focus:outline-none"
                   />
+                  {reviewNotesError && <p id="evidence-review-notes-error" className="text-xs font-medium text-rose-700">{reviewNotesError}</p>}
                 </div>
 
                 <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
