@@ -16,31 +16,56 @@ export const ReportsPage: React.FC = () => {
   const [caseItem, setCaseItem] = useState<MissingPersonCase | null>(null);
   const [matches, setMatches] = useState<CandidateMatch[]>([]);
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
 
   useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setLoadError('');
+    setCaseItem(null);
+    setMatches([]);
+    setTimeline([]);
     async function loadReportData() {
       try {
         const res = await apiService.getCaseById(caseIdParam);
-        if (res.case) setCaseItem(res.case);
-        if (res.matches) setMatches(res.matches);
-        if (res.timeline) setTimeline(res.timeline);
+        if (!res.case) throw new Error(`Case ${caseIdParam} was not found.`);
+        if (active) {
+          setCaseItem(res.case);
+          setMatches(res.matches || []);
+          setTimeline(res.timeline || []);
+        }
       } catch (err) {
-        console.warn('Backend server offline');
+        if (active) setLoadError(err instanceof Error ? err.message : 'The case report could not be loaded.');
+      } finally {
+        if (active) setLoading(false);
       }
     }
-    loadReportData();
+    void loadReportData();
+    return () => { active = false; };
   }, [caseIdParam]);
 
   const handlePrint = () => {
     window.print();
   };
 
-  if (!caseItem) {
+  if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center">
-        <div className="text-center space-y-2">
+      <div className="min-h-screen bg-slate-950 text-slate-100 grid place-items-center p-6">
+        <div role="status" className="text-center space-y-3">
           <div className="w-8 h-8 rounded-full border-2 border-cyan-500 border-t-transparent animate-spin mx-auto" />
           <p className="text-xs text-slate-400">Generating Official ReturnHome Report...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (loadError || !caseItem) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100 grid place-items-center p-6">
+        <div role="alert" className="max-w-md rounded-2xl border border-rose-900/60 bg-slate-900 p-6 text-center">
+          <p className="text-sm font-semibold text-rose-200">Report unavailable</p>
+          <p className="mt-2 text-xs leading-5 text-slate-400">{loadError || `Case ${caseIdParam} could not be found.`}</p>
         </div>
       </div>
     );

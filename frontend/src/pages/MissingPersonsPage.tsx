@@ -94,13 +94,13 @@ export const MissingPersonsPage: React.FC = () => {
 
           <BrandDisclaimer variant="compact" />
 
-          <section className="space-y-4 rounded-2xl border border-teal-200 bg-white p-5 shadow-sm" aria-labelledby="public-intake-heading">
+          <section className="space-y-4 rounded-2xl border border-teal-200 bg-white p-5 shadow-sm" aria-labelledby="public-intake-heading" aria-busy={publicReportsLoading}>
             <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
               <div><p className="text-[10px] font-bold uppercase tracking-[.16em] text-teal-700">Protected intake queue</p><h2 id="public-intake-heading" className="mt-1 text-lg font-bold text-slate-900">Public reports awaiting review</h2><p className="mt-1 text-xs text-slate-500">MongoDB submissions · reporter contacts and photos are visible only in this signed-in workspace.</p></div>
               <span className="w-fit rounded-full bg-teal-50 px-3 py-1 text-xs font-semibold text-teal-800">{publicReportsLoading ? 'Loading…' : `${filteredPublicReports.length} shown`}</span>
             </div>
             <label className="block max-w-xl text-xs font-semibold text-slate-600">Search reports by name, reference, or location<input type="search" value={publicReportSearch} onChange={(event) => setPublicReportSearch(event.target.value)} className="mt-1.5 min-h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm font-normal text-slate-900 outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-600/20" /></label>
-            {publicReportError ? <p role="alert" className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Could not load the public report queue: {publicReportError}</p> : publicReportsLoading ? <p role="status" className="rounded-xl border border-slate-200 p-5 text-sm text-slate-500">Loading reports…</p> : publicReports.length === 0 ? <EmptyState icon={<Eye size={20} />} title="No reports are waiting for review" description="New public submissions will appear in this queue after they are saved successfully." className="py-6" /> : filteredPublicReports.length === 0 ? <EmptyState icon={<Search size={20} />} title="No reports match this search" description="Try another name, reference, or location, or clear the search field to see all reports." className="py-6" /> :
+            {publicReportError ? <p role="alert" className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Could not load the public report queue: {publicReportError}</p> : publicReportsLoading ? <div role="status" aria-label="Loading public reports" className="grid gap-3 lg:grid-cols-2">{[0, 1].map((index) => <div key={index} aria-hidden="true" className="flex animate-pulse gap-4 rounded-xl border border-slate-200 p-4"><div className="h-20 w-20 shrink-0 rounded-lg bg-slate-100" /><div className="flex-1 space-y-2 py-1"><div className="h-4 w-1/2 rounded bg-slate-100" /><div className="h-3 w-3/4 rounded bg-slate-100" /><div className="h-3 w-1/3 rounded bg-slate-100" /></div></div>)}</div> : publicReports.length === 0 ? <EmptyState icon={<Eye size={20} />} title="No reports are waiting for review" description="New public submissions will appear in this queue after they are saved successfully." className="py-6" /> : filteredPublicReports.length === 0 ? <EmptyState icon={<Search size={20} />} title="No reports match this search" description="Try another name, reference, or location, or clear the search field to see all reports." className="py-6" /> :
               <div className="grid gap-3 lg:grid-cols-2">{filteredPublicReports.map((report) => <article key={report._id} className="flex gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
                 {report.missingPerson.photoUrl ? <img src={report.missingPerson.photoUrl} alt={`Submitted photo of ${report.missingPerson.fullName}`} className="h-20 w-20 shrink-0 rounded-lg border border-slate-200 object-cover" /> : <div className="grid h-20 w-20 shrink-0 place-items-center rounded-lg bg-slate-200 text-xs text-slate-500">No photo</div>}
                 <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-semibold text-slate-900">{report.missingPerson.fullName}</h3><span className="rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-bold text-amber-900">{report.status}</span></div>
@@ -186,7 +186,7 @@ export const MissingPersonsPage: React.FC = () => {
 
           {/* Cases Table */}
           <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm overflow-x-auto">
-            <table className="w-full text-left text-xs">
+            <table className="w-full text-left text-xs" aria-busy={casesLoading}>
               <thead>
                 <tr className="border-b border-slate-200 text-slate-500 font-extrabold uppercase text-[10px] bg-slate-50">
                   <th className="py-3 px-3 rounded-l-lg">Case ID</th>
@@ -202,7 +202,7 @@ export const MissingPersonsPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {casesLoading && <tr><td colSpan={10} className="py-8 text-center text-sm text-slate-500">Loading case records…</td></tr>}
+                {casesLoading && Array.from({ length: 5 }, (_, row) => <tr key={`loading-case-${row}`} aria-hidden="true" className="animate-pulse">{Array.from({ length: 10 }, (_, col) => <td key={col} className="px-3 py-4"><div className="h-3 rounded bg-slate-100" style={{ width: `${45 + ((row + col) % 4) * 12}%` }} /></td>)}</tr>)}
                 {!casesLoading && casesError && <tr><td colSpan={10} className="py-8 text-center text-sm text-rose-700" role="alert">Could not load case records: {casesError}</td></tr>}
                 {!casesLoading && !casesError && cases.length === 0 && <tr><td colSpan={10} className="p-3"><EmptyState icon={<Search size={20} />} title="No cases match these filters" description="Try a different search term or broaden the status, priority, or gender filters." className="border-0 bg-transparent" /></td></tr>}
                 {!casesLoading && !casesError && cases.map((c) => (

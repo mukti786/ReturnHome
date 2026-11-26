@@ -11,30 +11,56 @@ export const EditCasePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [caseItem, setCaseItem] = useState<MissingPersonCase | null>(null);
+  const [loadingCase, setLoadingCase] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [loading, setLoading] = useState(false);
   const [formError, setFormError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const submitLock = useRef(false);
 
   useEffect(() => {
+    let active = true;
     async function loadCase() {
-      if (!id) return;
+      setLoadingCase(true);
+      setLoadError('');
+      setCaseItem(null);
+      if (!id) {
+        setLoadError('A case identifier is required to edit this record.');
+        setLoadingCase(false);
+        return;
+      }
       try {
         const res = await apiService.getCaseById(id);
-        if (res.case) setCaseItem(res.case);
+        if (!res.case) throw new Error(`Case ${id} was not found.`);
+        if (active) setCaseItem(res.case);
       } catch (err) {
-        console.warn('Backend server offline');
+        if (active) setLoadError(err instanceof Error ? err.message : 'Case details could not be loaded.');
+      } finally {
+        if (active) setLoadingCase(false);
       }
     }
-    loadCase();
+    void loadCase();
+    return () => { active = false; };
   }, [id]);
 
-  if (!caseItem) {
+  if (loadingCase) {
     return (
-      <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center">
-        <div className="text-center space-y-2">
+      <div className="min-h-screen bg-slate-950 text-slate-100 grid place-items-center p-6">
+        <div role="status" className="text-center space-y-3">
           <div className="w-8 h-8 rounded-full border-2 border-cyan-500 border-t-transparent animate-spin mx-auto" />
           <p className="text-xs text-slate-400">Loading Case Data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (loadError || !caseItem) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100 grid place-items-center p-6">
+        <div role="alert" className="max-w-md rounded-2xl border border-rose-900/60 bg-slate-900 p-6 text-center">
+          <p className="text-sm font-semibold text-rose-200">Case could not be loaded</p>
+          <p className="mt-2 text-xs leading-5 text-slate-400">{loadError || 'This case record is unavailable.'}</p>
+          <button type="button" onClick={() => navigate('/cases')} className="mt-4 rounded-lg border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-800">Back to cases</button>
         </div>
       </div>
     );

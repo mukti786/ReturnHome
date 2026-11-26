@@ -17,6 +17,8 @@ export const SubmitSightingPage: React.FC = () => {
   const caseRefParam = searchParams.get('caseRef') || '';
 
   const [cases, setCases] = useState<MissingPersonCase[]>([]);
+  const [casesLoading, setCasesLoading] = useState(true);
+  const [casesLoadError, setCasesLoadError] = useState('');
   const [selectedCaseRef, setSelectedCaseRef] = useState(caseRefParam);
   const [location, setLocation] = useState('');
   const [latitude, setLatitude] = useState<number | undefined>(undefined);
@@ -45,18 +47,27 @@ export const SubmitSightingPage: React.FC = () => {
   const submitLock = useRef(false);
 
   useEffect(() => {
+    let active = true;
     const fetchCases = async () => {
+      setCasesLoading(true);
+      setCasesLoadError('');
       try {
         const res = await apiService.getCases({ limit: '50' });
-        if (res.success) {
+        if (!res.success) throw new Error('Registered cases could not be loaded.');
+        if (active) {
           setCases(res.cases);
           if (!selectedCaseRef && res.cases.length > 0) {
             setSelectedCaseRef(res.cases[0].caseId);
           }
         }
-      } catch { /* ignore */ }
+      } catch (loadError) {
+        if (active) setCasesLoadError(loadError instanceof Error ? loadError.message : 'Registered cases could not be loaded.');
+      } finally {
+        if (active) setCasesLoading(false);
+      }
     };
     void fetchCases();
+    return () => { active = false; };
   }, []);
 
   const handleUseCurrentLocation = () => {
@@ -231,17 +242,21 @@ export const SubmitSightingPage: React.FC = () => {
                 value={selectedCaseRef}
                 onChange={(e) => { setSelectedCaseRef(e.target.value); setFieldErrors((current) => ({ ...current, case: '' })); }}
                 required
+                disabled={casesLoading || !!casesLoadError}
+                aria-busy={casesLoading}
                 aria-invalid={!!fieldErrors.case}
                 aria-describedby={fieldErrors.case ? 'sighting-case-error' : undefined}
                 className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-medium text-slate-900 focus:border-[#356a5a] focus:outline-none"
               >
-                <option value="">Select a registered case...</option>
+                <option value="">{casesLoading ? 'Loading registered cases…' : casesLoadError ? 'Cases unavailable' : cases.length ? 'Select a registered case…' : 'No registered cases available'}</option>
                 {cases.map((c) => (
                   <option key={c.caseId} value={c.caseId}>
                     {c.name} ({c.caseId}) — Last seen {c.lastSeenLocation}
                   </option>
                 ))}
               </select>
+              {casesLoading && <p role="status" className="mt-1 text-xs text-slate-500">Loading available cases…</p>}
+              {casesLoadError && <p role="alert" className="mt-1 text-xs text-rose-700">Could not load registered cases: {casesLoadError} Refresh this page to try again.</p>}
               {fieldErrors.case && <p id="sighting-case-error" className="mt-1 text-xs font-medium text-rose-700">{fieldErrors.case}</p>}
 
               {targetCase && (

@@ -10,17 +10,25 @@ import { AuditLogItem } from '../types';
 export const AuditLogsPage: React.FC = () => {
   const [logs, setLogs] = useState<AuditLogItem[]>([]);
   const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
 
   useEffect(() => {
+    let active = true;
     async function loadLogs() {
+      setLoading(true);
+      setLoadError('');
       try {
         const res = await apiService.getAuditLogs({ search });
-        if (res.logs) setLogs(res.logs);
+        if (active) setLogs(res.logs || []);
       } catch (err) {
-        console.warn('Backend server offline');
+        if (active) setLoadError(err instanceof Error ? err.message : 'Audit records could not be loaded.');
+      } finally {
+        if (active) setLoading(false);
       }
     }
-    loadLogs();
+    void loadLogs();
+    return () => { active = false; };
   }, [search]);
 
   return (
@@ -60,7 +68,8 @@ export const AuditLogsPage: React.FC = () => {
           </div>
 
           <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg overflow-x-auto">
-            <table className="w-full text-left text-xs">
+            <table className="w-full text-left text-xs" aria-busy={loading}>
+              <caption className="sr-only">{loading ? 'Loading audit records' : loadError ? 'Audit records could not be loaded' : `${logs.length} audit records`}</caption>
               <thead>
                 <tr className="border-b border-slate-800 text-slate-400 font-semibold uppercase text-[10px]">
                   <th className="py-3 px-3">Timestamp</th>
@@ -72,7 +81,15 @@ export const AuditLogsPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60 font-mono">
-                {logs.map((l) => (
+                {loading ? Array.from({ length: 5 }, (_, row) => (
+                  <tr key={`loading-${row}`} aria-hidden="true" className="animate-pulse">
+                    {Array.from({ length: 6 }, (_, col) => <td key={col} className="px-3 py-4"><div className="h-3 rounded bg-slate-800" style={{ width: `${55 + ((row + col) % 4) * 10}%` }} /></td>)}
+                  </tr>
+                )) : loadError ? (
+                  <tr><td colSpan={6} role="alert" className="px-3 py-8 text-center font-sans text-xs text-rose-300">Could not load audit records: {loadError}</td></tr>
+                ) : logs.length === 0 ? (
+                  <tr><td colSpan={6} className="px-3 py-8 text-center font-sans text-xs text-slate-400">No audit records match this search.</td></tr>
+                ) : logs.map((l) => (
                   <tr key={l.id} className="hover:bg-slate-800/50 transition-colors text-[11px]">
                     <td className="py-3 px-3 text-slate-400">{l.timestamp.replace('T', ' ').slice(0, 19)}</td>
                     <td className="py-3 px-3 font-semibold text-white font-sans">{l.userName} ({l.userRole})</td>

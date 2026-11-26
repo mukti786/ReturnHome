@@ -54,11 +54,15 @@ export const MapViewPage: React.FC = () => {
     let active = true;
     async function loadAllLocations() {
       setLoading(true);
+      setError('');
+      const sourceUnavailable = () => {
+        if (active) setError('Some location sources could not be loaded. Available records are still shown.');
+      };
       try {
         const [casesRes, sightingsRes, camerasRes] = await Promise.all([
-          apiService.getCases({ limit: '100' }).catch(() => ({ cases: [] })),
-          apiService.getSightings({ limit: '100' }).catch(() => ({ sightings: [] })),
-          apiService.getCameras().catch(() => ({ cameras: [] }))
+          apiService.getCases({ limit: '100' }).catch(() => { sourceUnavailable(); return { cases: [] }; }),
+          apiService.getSightings({ limit: '100' }).catch(() => { sourceUnavailable(); return { sightings: [] }; }),
+          apiService.getCameras().catch(() => { sourceUnavailable(); return { cameras: [] }; })
         ]);
         if (active) {
           setCases(casesRes.cases || []);
@@ -292,6 +296,7 @@ export const MapViewPage: React.FC = () => {
           </header>
 
           <BrandDisclaimer variant="compact" />
+          {error && <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">Location records could not be fully loaded: {error}</p>}
 
           {/* Map & Detail Layout */}
           <section className="grid gap-6 lg:grid-cols-12">
@@ -337,6 +342,7 @@ export const MapViewPage: React.FC = () => {
 
               {/* Map Canvas */}
               <div ref={mapElement} className="h-[540px] w-full" role="application" aria-label="Interactive map" />
+              {loading && <div role="status" className="pointer-events-none absolute inset-0 z-[400] grid place-items-center bg-white/35 backdrop-blur-[1px]"><div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white/95 px-4 py-3 text-xs font-medium text-slate-700 shadow-sm"><span aria-hidden="true" className="h-4 w-4 animate-spin rounded-full border-2 border-[#356a5a] border-t-transparent" />Loading location records…</div></div>}
 
               {/* Legend bottom left */}
               <div className="absolute bottom-4 left-4 z-[500] flex flex-wrap gap-2 rounded-2xl border border-slate-200 bg-white/95 p-2 shadow-md backdrop-blur text-[11px] font-semibold text-slate-700">

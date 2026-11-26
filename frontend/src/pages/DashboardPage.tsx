@@ -159,7 +159,9 @@ export const DashboardPage: React.FC = () => {
                 </div>
 
                 {loading ? (
-                  <div className="py-12 text-center text-xs text-slate-500">Loading your submitted cases…</div>
+                  <div role="status" aria-label="Loading your submitted cases" className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    {[0, 1, 2].map((index) => <div key={index} aria-hidden="true" className="animate-pulse rounded-2xl border border-slate-200 p-4"><div className="flex gap-3"><div className="h-16 w-16 rounded-xl bg-slate-100" /><div className="flex-1 space-y-2 pt-1"><div className="h-3 w-1/3 rounded bg-slate-100" /><div className="h-4 w-3/4 rounded bg-slate-100" /><div className="h-3 w-1/2 rounded bg-slate-100" /></div></div><div className="mt-4 space-y-2 border-t border-slate-100 pt-3"><div className="h-3 w-2/3 rounded bg-slate-100" /><div className="h-3 w-1/3 rounded bg-slate-100" /></div></div>)}
+                  </div>
                 ) : myCases.length === 0 ? (
                   <div className="py-12 text-center">
                     <Users className="mx-auto h-10 w-10 text-slate-300" />
@@ -239,7 +241,9 @@ export const DashboardPage: React.FC = () => {
                 </div>
 
                 {loading ? (
-                  <div className="py-8 text-center text-xs text-slate-500">Loading your sighting reports…</div>
+                  <div role="status" aria-label="Loading your sighting reports" className="mt-4 divide-y divide-slate-100">
+                    {[0, 1, 2].map((index) => <div key={index} aria-hidden="true" className="animate-pulse space-y-2 py-4"><div className="h-3 w-1/3 rounded bg-slate-100" /><div className="h-3 w-2/3 rounded bg-slate-100" /><div className="h-3 w-1/2 rounded bg-slate-100" /></div>)}
+                  </div>
                 ) : mySightings.length === 0 ? (
                   <EmptyState
                     icon={<Eye size={20} />}
@@ -323,7 +327,7 @@ export const DashboardPage: React.FC = () => {
                     </button>
                   </div>
                   <div className="overflow-x-auto">
-                    <table className="w-full min-w-[680px] text-left text-sm">
+                    <table className="w-full min-w-[680px] text-left text-sm" aria-busy={loading}>
                       <thead>
                         <tr className="border-b border-slate-200 bg-slate-50/80 text-[11px] font-bold uppercase tracking-wider text-slate-500">
                           <th className="px-5 py-3">Case ID</th>
@@ -334,9 +338,7 @@ export const DashboardPage: React.FC = () => {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
-                        {loading && (
-                          <tr><td colSpan={5} className="px-5 py-8 text-center text-xs text-slate-500">Loading cases…</td></tr>
-                        )}
+                        {loading && Array.from({ length: 4 }, (_, row) => <tr key={`loading-case-${row}`} aria-hidden="true" className="animate-pulse">{[0, 1, 2, 3, 4].map((col) => <td key={col} className="px-5 py-4"><div className="h-3 rounded bg-slate-100" style={{ width: `${48 + ((row + col) % 4) * 12}%` }} /></td>)}</tr>)}
                         {!loading && !recentCases.length && (
                           <tr><td colSpan={5} className="px-3 py-3"><EmptyState icon={<FolderKanban size={20} />} title="No active cases to show" description="Newly registered missing person cases will appear here for review." className="border-0 bg-transparent" /></td></tr>
                         )}
@@ -390,7 +392,7 @@ export const DashboardPage: React.FC = () => {
                     </button>
                   </div>
                   <div className="flex-1 space-y-3 p-4 overflow-y-auto max-h-[460px]">
-                    {loading && <p className="py-8 text-center text-xs text-slate-500">Loading candidate leads…</p>}
+                    {loading && <div role="status" aria-label="Loading candidate leads" className="space-y-3">{[0, 1, 2].map((index) => <div key={index} aria-hidden="true" className="animate-pulse rounded-xl border border-slate-200 p-3.5"><div className="h-3 w-2/3 rounded bg-slate-100" /><div className="mt-3 h-3 w-1/2 rounded bg-slate-100" /><div className="mt-2 h-3 w-1/3 rounded bg-slate-100" /></div>)}</div>}
                     {!loading && !recentMatches.length && (
                       <div className="py-12 text-center text-xs text-slate-500">
                         No pending candidate leads require review.
@@ -437,7 +439,7 @@ export const DashboardPage: React.FC = () => {
                   </button>
                 </div>
                 <div className="divide-y divide-slate-100 px-6">
-                  {loading && <p className="py-6 text-xs text-slate-500">Loading recent activity…</p>}
+                  {loading && <div role="status" aria-label="Loading recent activity" className="divide-y divide-slate-100">{[0, 1, 2].map((index) => <div key={index} aria-hidden="true" className="animate-pulse space-y-2 py-4"><div className="h-3 w-1/2 rounded bg-slate-100" /><div className="h-3 w-4/5 rounded bg-slate-100" /></div>)}</div>}
                   {!loading && !timeline.length && (
                     <p className="py-6 text-xs text-slate-500">No activity recorded yet.</p>
                   )}

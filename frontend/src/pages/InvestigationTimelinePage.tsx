@@ -10,17 +10,23 @@ import { TimelineEvent } from '../types';
 
 export const InvestigationTimelinePage: React.FC = () => {
   const [events, setEvents] = useState<TimelineEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
 
   useEffect(() => {
+    let active = true;
     async function loadData() {
       try {
         const res = await apiService.getDashboardStats();
-        if (res.recentTimeline) setEvents(res.recentTimeline);
+        if (active) setEvents(res.recentTimeline || []);
       } catch (err) {
-        console.warn('Backend server offline');
+        if (active) setLoadError(err instanceof Error ? err.message : 'Timeline events could not be loaded.');
+      } finally {
+        if (active) setLoading(false);
       }
     }
-    loadData();
+    void loadData();
+    return () => { active = false; };
   }, []);
 
   return (
@@ -45,9 +51,19 @@ export const InvestigationTimelinePage: React.FC = () => {
           <BrandDisclaimer variant="compact" />
 
           {/* Timeline Feed */}
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-lg space-y-6">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-lg space-y-6" aria-busy={loading}>
             <div className="space-y-6 relative pl-8 border-l-2 border-slate-800">
-              {events.map((evt) => (
+              {loading ? Array.from({ length: 3 }, (_, index) => (
+                <div key={`loading-${index}`} aria-hidden="true" className="relative animate-pulse space-y-3 rounded-xl border border-slate-800 bg-slate-950 p-4">
+                  <div className="h-4 w-2/5 rounded bg-slate-800" />
+                  <div className="h-3 w-4/5 rounded bg-slate-800" />
+                  <div className="h-3 w-1/3 rounded bg-slate-800" />
+                </div>
+              )) : loadError ? (
+                <p role="alert" className="rounded-xl border border-rose-900/60 bg-rose-950/30 p-4 text-xs text-rose-200">Could not load the investigation timeline: {loadError}</p>
+              ) : events.length === 0 ? (
+                <p className="rounded-xl border border-slate-800 bg-slate-950 p-4 text-xs text-slate-400">No timeline events are available yet.</p>
+              ) : events.map((evt) => (
                 <div key={evt.id} className="relative space-y-1.5 bg-slate-950 p-4 rounded-xl border border-slate-800">
                   <div className="absolute -left-[41px] top-4 w-4 h-4 rounded-full bg-gradient-to-r from-indigo-500 to-cyan-500 border-4 border-slate-900 shadow-md" />
                   
